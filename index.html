@@ -843,7 +843,7 @@ async function saveSB(){
 
 async function initSB(){
   const sb = getSB();
-  if(!sb){ setSBStatus('Sin credenciales. Ingresa URL y Anon Key arriba.'); return; }
+  if(!sb){ setSBStatus('Sin conexión a Supabase'); return; }
   setSBStatus('⟳ Conectando a Supabase...', 'var(--dorado)');
   try{
     // Cargar inventario
@@ -866,32 +866,13 @@ async function initSB(){
     if(e3) throw e3;
     if(prices.length) prices.forEach(p => S.prices[p.ingrediente] = p.costo_kg);
 
-    // Suscribir a cambios en tiempo real
-    sb.channel('fondo_realtime')
-      .on('postgres_changes',{event:'*',schema:'public',table:'fondo_inventory'}, payload=>{
-        if(payload.new) S.inv[payload.new.id] = payload.new.stock;
-        renderDash(); renderInv(); updateAlertPill();
-        showToast('⚡ Inventario actualizado por otro usuario');
-      })
-      .on('postgres_changes',{event:'INSERT',schema:'public',table:'fondo_history'}, payload=>{
-        const h = payload.new;
-        S.hist.unshift({
-          tipo:h.tipo, nombre:h.producto, weights:h.pesos||[],
-          user:h.usuario, total:h.peso_total,
-          time: new Date(h.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+
-                new Date(h.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
-        });
-        if(S.hist.length>200) S.hist.pop();
-        renderHist(); renderDash();
-      })
-      .subscribe();
-
-    setSBStatus('⚡ Conectado — cambios en tiempo real activos', '#5dba8a');
+    setSBStatus('✓ Conectado — datos cargados desde nube', '#5dba8a');
     renderDash(); renderInv(); renderHist(); updateAlertPill();
+    showToast('✓ Datos sincronizados desde nube');
 
   }catch(e){
-    setSBStatus('❌ '+e.message+' — trabajando local', '#ff6666');
-    showToast('Sin nube — modo local activo');
+    setSBStatus('❌ '+e.message+' — modo local', '#ff6666');
+    showToast('⚠ Trabajando sin nube');
   }
 }
 
