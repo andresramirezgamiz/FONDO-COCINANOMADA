@@ -1,0 +1,2344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>FONDO — Sistema Operativo</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300&family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --rojo:#6f0606;--rojo-dark:#410606;--rojo-mid:#8a0808;
+  --crema:#e6e1ce;--cafe:#1a0d05;--dorado:#b8903a;--dorado-light:#d4ac58;
+  --gris:#7a7a7a;--verde:#2d6a4f;--naranja:#c4622d;--azul:#1a4a8a;
+  --bg:#150a03;--surface:#1e0f05;--surface2:#28160a;--surface3:#32200f;
+  --border:rgba(184,144,58,0.18);--border2:rgba(184,144,58,0.35);
+  --text:var(--crema);--text2:rgba(230,225,206,0.65);--text3:rgba(230,225,206,0.35);
+  --r6:6px;--r10:10px;--r16:16px;--r24:24px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--crema);font-family:'Montserrat',sans-serif;display:flex;flex-direction:column}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--dorado);border-radius:2px}
+
+/* HEADER */
+.hdr{background:linear-gradient(180deg,var(--rojo-dark) 0%,#350404 100%);border-bottom:1px solid var(--dorado);padding:14px 18px 0;flex-shrink:0;position:relative;z-index:50}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.logo{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:300;letter-spacing:9px;color:var(--crema);line-height:1}
+.logo sub{font-size:8px;letter-spacing:3px;color:var(--text2);display:block;text-transform:uppercase;margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:10px}
+.alert-pill{background:var(--rojo);color:var(--crema);font-size:9px;font-weight:700;padding:4px 10px;border-radius:20px;letter-spacing:1.5px;display:none;animation:pulse 2s infinite}
+.alert-pill.on{display:block}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.55}}
+.sync-btn{background:rgba(184,144,58,.12);border:1px solid var(--border);color:var(--dorado);font-size:9px;letter-spacing:1px;padding:5px 10px;border-radius:20px;cursor:pointer;font-family:'Montserrat',sans-serif;font-weight:600}
+
+/* TABS */
+.tabs{display:flex;gap:0;overflow-x:auto;scrollbar-width:none;margin:0 -18px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:10px 15px;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--text3);cursor:pointer;white-space:nowrap;border-bottom:2px solid transparent;transition:all .2s;font-weight:600;flex-shrink:0}
+.tab.on{color:var(--dorado-light);border-bottom-color:var(--dorado)}
+.tab:active{background:rgba(184,144,58,.06)}
+
+/* MAIN SCROLL */
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.page{display:none;min-height:100%;padding:0 0 80px}
+.page.on{display:block}
+.inner{max-width:680px;margin:0 auto;padding:18px 16px}
+
+/* CARDS */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r10);padding:18px;margin-bottom:14px}
+.card-title{font-family:'Cormorant Garamond',serif;font-size:19px;font-weight:600;color:var(--dorado);letter-spacing:2.5px;text-transform:uppercase;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.card-title .icon{font-size:16px}
+
+/* INPUTS */
+.lbl{font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--gris);margin-bottom:6px;display:block}
+select,input[type=text],input[type=number]{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r6);color:var(--crema);font-family:'Montserrat',sans-serif;font-size:13px;padding:11px 13px;outline:none;transition:border-color .2s;appearance:none;-webkit-appearance:none}
+select:focus,input:focus{border-color:var(--dorado)}
+option{background:var(--surface2)}
+.sel-wrap{position:relative}
+.sel-wrap::after{content:'▾';position:absolute;right:13px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--dorado);pointer-events:none}
+.inp-group{margin-bottom:13px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 18px;border-radius:var(--r6);font-family:'Montserrat',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;cursor:pointer;border:none;transition:all .15s;width:100%;margin-top:6px}
+.btn:active{transform:scale(.97)}
+.btn-rojo{background:var(--rojo);color:var(--crema)}
+.btn-rojo:active{background:var(--rojo-dark)}
+.btn-verde{background:var(--verde);color:var(--crema)}
+.btn-dorado{background:var(--dorado);color:var(--rojo-dark)}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--dorado)}
+.btn-ghost{background:rgba(230,225,206,.06);color:var(--text2);border:1px solid var(--border)}
+.btn-sm{padding:7px 13px;font-size:9px;width:auto;margin-top:0}
+.btn-row{display:flex;gap:8px;margin-top:12px}
+.btn-row .btn{flex:1;margin-top:0}
+
+/* DIVIDER */
+.divider{height:1px;background:linear-gradient(to right,transparent,var(--dorado),transparent);opacity:.2;margin:16px 0}
+
+/* PILLS */
+.pills{display:flex;gap:7px;overflow-x:auto;scrollbar-width:none;margin-bottom:16px;padding-bottom:2px}
+.pills::-webkit-scrollbar{display:none}
+.pill{padding:6px 13px;border-radius:20px;border:1px solid var(--border);font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;white-space:nowrap;transition:all .2s;color:var(--gris);font-weight:600;flex-shrink:0}
+.pill.on{background:var(--rojo);border-color:var(--rojo);color:var(--crema)}
+
+/* CHIPS */
+.user-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.chip{padding:7px 16px;border-radius:20px;border:1px solid var(--border);font-size:11px;letter-spacing:.5px;cursor:pointer;transition:all .2s;color:var(--text2)}
+.chip.on{background:var(--rojo);border-color:var(--rojo);color:var(--crema);font-weight:600}
+
+/* TABLE */
+.tbl{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}
+.tbl th{font-size:8.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gris);padding:8px 9px;text-align:left;border-bottom:1px solid var(--border);font-weight:600}
+.tbl td{padding:9px;border-bottom:1px solid rgba(184,144,58,.07);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl input{padding:5px 8px;font-size:12px;width:88px;border-radius:4px}
+.scaled{color:var(--dorado);font-weight:700;font-size:13px}
+
+/* OUTPUT GRID */
+.out-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.out-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r10);padding:14px;text-align:center}
+.out-val{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--dorado);display:block;line-height:1}
+.out-lbl{font-size:8.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gris);margin-top:5px;display:block}
+
+/* INVENTORY ITEMS */
+.inv-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r10);padding:15px;margin-bottom:10px;transition:border-color .2s}
+.inv-card.warn{border-color:rgba(196,98,45,.55)}
+.inv-card.crit{border-color:rgba(220,30,30,.7);animation:borderpulse 2s infinite}
+@keyframes borderpulse{0%,100%{border-color:rgba(220,30,30,.7)}50%{border-color:rgba(220,30,30,1)}}
+.inv-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:9px}
+.inv-name{font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:var(--crema)}
+.inv-meta{font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gris);margin-top:2px}
+.inv-right{text-align:right}
+.inv-num{font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;color:var(--crema)}
+.inv-sub{font-size:10px;color:var(--gris)}
+.tag{font-size:8.5px;letter-spacing:1.5px;text-transform:uppercase;padding:3px 8px;border-radius:4px;font-weight:700;display:inline-block;margin-top:4px}
+.tag-ok{background:rgba(45,106,79,.2);color:#5dba8a}
+.tag-warn{background:rgba(196,98,45,.2);color:#e07a4a}
+.tag-crit{background:rgba(220,30,30,.2);color:#ff6666}
+.bar{height:3px;background:rgba(230,225,206,.08);border-radius:2px;overflow:hidden;margin:10px 0 12px}
+.bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.bar-ok{background:var(--verde)}
+.bar-warn{background:var(--naranja)}
+.bar-crit{background:#cc2222}
+
+/* HISTORIAL */
+.hist-item{display:flex;gap:11px;padding:12px 0;border-bottom:1px solid var(--border);align-items:flex-start}
+.hist-item:last-child{border-bottom:none}
+.h-icon{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.h-in{background:rgba(45,106,79,.2);color:#5dba8a}
+.h-out{background:rgba(111,6,6,.3);color:#ff9999}
+.h-body{flex:1}
+.h-prod{font-size:13px;font-weight:600;color:var(--crema)}
+.h-det{font-size:11px;color:var(--gris);margin-top:2px}
+.h-time{font-size:9.5px;color:var(--gris);white-space:nowrap;letter-spacing:.5px}
+
+/* DASHBOARD */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.dash-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r10);padding:16px}
+.dash-val{font-family:'Cormorant Garamond',serif;font-size:32px;font-weight:600;color:var(--dorado);line-height:1}
+.dash-lbl{font-size:8.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gris);margin-top:6px}
+.alert-list-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)}
+.alert-list-item:last-child{border-bottom:none}
+.alert-prod{font-size:13px;font-weight:600}
+.alert-stock{font-size:11px;color:var(--gris)}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:none;align-items:center;justify-content:center;padding:20px}
+.overlay.on{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:var(--r16);padding:22px 18px;width:100%;max-width:700px;max-height:88vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.modal-title{font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:var(--dorado);letter-spacing:2px;text-transform:uppercase;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center}
+.modal-close{background:none;border:none;color:var(--gris);font-size:20px;cursor:pointer;padding:4px 8px;line-height:1}
+.bags-wrap{margin-top:10px}
+.bag-row{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.bag-lbl{font-size:11px;color:var(--gris);white-space:nowrap;min-width:62px}
+.bag-row input{flex:1}
+.bag-unit{font-size:11px;color:var(--gris);min-width:18px}
+
+/* GUIDE MODAL — full screen */
+.guide-overlay{position:fixed;inset:0;background:var(--bg);z-index:300;display:none;flex-direction:column}
+.guide-overlay.on{display:flex}
+.guide-hdr{background:var(--rojo-dark);border-bottom:1px solid var(--dorado);padding:16px 18px;flex-shrink:0}
+.guide-title-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.guide-recipe-name{font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:var(--crema);letter-spacing:2px;text-transform:uppercase}
+.guide-close{background:none;border:none;color:var(--text2);font-size:22px;cursor:pointer;line-height:1}
+.guide-progress-bar{height:3px;background:rgba(230,225,206,.1);border-radius:2px;overflow:hidden}
+.guide-progress-fill{height:100%;background:var(--dorado);border-radius:2px;transition:width .4s ease}
+.guide-step-counter{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text2);margin-top:8px}
+.guide-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:18px 16px}
+.guide-body-inner{max-width:680px;margin:0 auto}
+.step-num{font-size:9px;letter-spacing:3px;text-transform:uppercase;color:var(--dorado);font-weight:700;margin-bottom:6px}
+.step-title{font-family:'Cormorant Garamond',serif;font-size:26px;font-weight:600;color:var(--crema);margin-bottom:14px;line-height:1.2}
+.step-text{font-size:14px;line-height:1.8;color:var(--crema)}
+.step-text b,.step-text .hi{color:var(--dorado-light);font-weight:700}
+.tip-card{background:rgba(184,144,58,.08);border:1px solid rgba(184,144,58,.2);border-radius:var(--r6);padding:12px 14px;margin-top:14px;font-size:12px;color:var(--text2);line-height:1.7}
+.tip-card strong{color:var(--dorado);font-size:9px;letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:4px}
+.checkpoint-card{background:rgba(45,106,79,.1);border:1px solid rgba(45,106,79,.3);border-radius:var(--r6);padding:12px 14px;margin-top:14px;font-size:12px;line-height:1.7}
+.checkpoint-card strong{color:#5dba8a;font-size:9px;letter-spacing:2px;text-transform:uppercase;display:block;margin-bottom:4px}
+.timer-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r10);padding:16px;margin-top:14px;text-align:center}
+.timer-lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gris);margin-bottom:8px}
+.timer-display{font-family:'Cormorant Garamond',serif;font-size:48px;font-weight:300;color:var(--crema);letter-spacing:4px;line-height:1;margin-bottom:12px}
+.timer-display.running{color:var(--dorado)}
+.timer-display.done{color:#5dba8a;animation:timerDone 1s infinite}
+@keyframes timerDone{0%,100%{opacity:1}50%{opacity:.3}}
+.timer-btns{display:flex;gap:8px;justify-content:center}
+.t-btn{padding:9px 18px;border-radius:var(--r6);font-family:'Montserrat',sans-serif;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;font-weight:700;cursor:pointer;border:none;transition:all .15s}
+.t-btn-start{background:var(--verde);color:#fff}
+.t-btn-pause{background:var(--naranja);color:#fff}
+.t-btn-reset{background:transparent;border:1px solid var(--border);color:var(--text2)}
+.guide-footer{padding:14px 16px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0}
+.guide-footer-inner{max-width:680px;margin:0 auto;display:flex;gap:10px}
+.guide-footer .btn{margin-top:0}
+.ingr-ref{background:var(--surface2);border-radius:var(--r6);border:1px solid var(--border);padding:12px;margin-bottom:16px}
+.ingr-ref-title{font-size:8.5px;letter-spacing:2px;text-transform:uppercase;color:var(--gris);margin-bottom:8px}
+.ingr-ref-list{display:flex;flex-wrap:wrap;gap:6px}
+.ingr-tag{background:rgba(184,144,58,.1);border:1px solid rgba(184,144,58,.2);border-radius:4px;padding:3px 8px;font-size:11px;color:var(--crema)}
+.ingr-tag b{color:var(--dorado)}
+
+/* CONFIG */
+.cfg-item{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)}
+.cfg-item:last-child{border-bottom:none}
+.cfg-name{font-size:13px;font-weight:600;color:var(--crema)}
+.cfg-desc{font-size:11px;color:var(--gris);margin-top:2px}
+
+/* EMPTY */
+.empty{text-align:center;padding:48px 20px;color:var(--gris)}
+.empty-icon{font-size:44px;margin-bottom:14px}
+.empty-txt{font-size:12px;letter-spacing:.5px;line-height:2}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--surface);border:1px solid var(--dorado);color:var(--crema);padding:11px 22px;border-radius:30px;font-size:12px;z-index:999;transition:transform .3s ease;white-space:nowrap;pointer-events:none}
+.toast.on{transform:translateX(-50%) translateY(0)}
+
+/* ANIMATIONS */
+.fade{animation:fadeUp .3s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+
+/* scaled qty highlight */
+.sq{color:var(--dorado-light);font-weight:700;background:rgba(184,144,58,.1);padding:0 3px;border-radius:3px}
+</style>
+</head>
+<body>
+
+<!-- PANTALLA LOGIN -->
+<div id="loginScreen" style="position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px">
+  <div style="font-family:'Cormorant Garamond',serif;font-size:48px;font-weight:300;letter-spacing:12px;color:var(--crema);margin-bottom:6px">FONDO</div>
+  <div style="font-size:9px;letter-spacing:4px;color:var(--gris);text-transform:uppercase;margin-bottom:48px">Cocina Nómada</div>
+  <div style="font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--text2);margin-bottom:24px">¿Quién eres?</div>
+  <div style="display:flex;flex-direction:column;gap:14px;width:100%;max-width:280px">
+    <button onclick="loginAs('Andres')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r10);padding:18px;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;letter-spacing:3px;color:var(--crema);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--dorado)';this.style.color='var(--dorado)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--crema)'">Andres</button>
+    <button onclick="loginAs('Camila')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r10);padding:18px;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;letter-spacing:3px;color:var(--crema);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--dorado)';this.style.color='var(--dorado)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--crema)'">Camila</button>
+    <button onclick="loginAs('Daniel')" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r10);padding:18px;font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;letter-spacing:3px;color:var(--crema);cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--dorado)';this.style.color='var(--dorado)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--crema)'">Daniel</button>
+  </div>
+  <div style="position:absolute;bottom:24px;font-size:9px;letter-spacing:2px;color:var(--text3);text-transform:uppercase">Sistema Operativo v2</div>
+</div>
+<div class="hdr">
+  <div class="hdr-top">
+    <div class="logo">FONDO <sub>Sistema Operativo</sub></div>
+    <div class="hdr-right">
+      <span class="alert-pill" id="alertPill">⚠ Alertas</span>
+      <span id="sbDot" style="font-size:9px;letter-spacing:1px;padding:5px 10px;border-radius:20px;background:rgba(184,144,58,.12);border:1px solid var(--border);color:var(--gris)">☁ —</span>
+      <button class="sync-btn" onclick="openTab('config')">☰ Config</button>
+    </div>
+  </div>
+  <div class="tabs">
+    <div class="tab on" onclick="openTab('dash')">Dashboard</div>
+    <div class="tab" onclick="openTab('esc')">Recetario</div>
+    <div class="tab" onclick="openTab('inv')">Producto Final</div>
+    <div class="tab" onclick="openTab('insumos')">Insumos</div>
+    <div class="tab" onclick="openTab('compras')">🛒 Compras</div>
+    <div class="tab" onclick="openTab('hist')">Historial</div>
+    <div class="tab" onclick="openTab('config')">Config</div>
+  </div>
+</div>
+
+<div class="main">
+
+<!-- DASHBOARD -->
+<div class="page on" id="page-dash">
+<div class="inner">
+  <div class="dash-grid" id="dashStats"></div>
+  <div class="card">
+    <div class="card-title"><span class="icon">⚠️</span>Alertas Activas</div>
+    <div id="dashAlerts"><div class="empty"><div class="empty-icon">✅</div><div class="empty-txt">Todo en orden.<br>Sin alertas activas.</div></div></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="icon">💡</span>Producir Pronto</div>
+    <div id="dashSugest"></div>
+  </div>
+  <div class="card">
+    <div class="card-title"><span class="icon">🕐</span>Últimos Movimientos</div>
+    <div id="dashHist"></div>
+  </div>
+</div>
+</div>
+
+<!-- ESCALADOR / RECETARIO -->
+<div class="page" id="page-esc">
+<div class="inner">
+  <div class="card">
+    <div class="card-title"><span class="icon">📖</span>Recetario</div>
+    <div class="inp-group">
+      <label class="lbl">Seleccionar Receta</label>
+      <div class="sel-wrap">
+        <select id="recSel" onchange="loadRecipe()">
+          <option value="">— Elige una receta —</option>
+          <optgroup label="🥖 Baguettes">
+            <option value="dip">DIP — Picaña Sous Vide</option>
+            <option value="entrecot">ENTRECÔT — Vacío Sous Vide</option>
+            <option value="poivre">POIVRE — Vacío Au Poivre</option>
+            <option value="pulledpork">PULLED PORK</option>
+            <option value="vodka">VODKA — Pollo</option>
+          </optgroup>
+          <optgroup label="🫙 Salsas y Fondos">
+            <option value="aupoivre">Salsa Au Poivre</option>
+            <option value="salsavodka">Salsa Vodka</option>
+            <option value="caldo">Caldo French Dip</option>
+          </optgroup>
+          <optgroup label="🧅 Bases">
+            <option value="cebolla">Cebolla Caramelizada</option>
+            <option value="pulledporkbase">Pulled Pork (base)</option>
+            <option value="echalote">Echalote Frito</option>
+          </optgroup>
+          <optgroup label="🥄 Mayonesas">
+            <option value="mayoajneg">Mayo Ajo Negro</option>
+            <option value="mayotrufa">Mayo Trufa</option>
+            <option value="mayochipotle">Mayo Chipotle</option>
+            <option value="mayodip">Mayo French Dip</option>
+          </optgroup>
+        </select>
+      </div>
+    </div>
+    <div id="scalerBody" style="display:none">
+      <div class="divider"></div>
+      <!-- CAMPO PRODUCIR POR KG -->
+      <div style="background:var(--surface2);border:1px solid var(--border2);border-radius:var(--r10);padding:14px;margin-bottom:16px">
+        <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--dorado);margin-bottom:10px">⚡ Escalar por producción deseada</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div style="flex:1">
+            <label style="font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gris);display:block;margin-bottom:5px">Quiero producir</label>
+            <input type="number" id="targetKg" step="0.1" min="0.1" placeholder="ej: 5" style="width:100%;padding:10px;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--crema);font-size:14px;font-weight:600" oninput="scaleByKg()">
+          </div>
+          <div style="font-size:11px;color:var(--gris);padding-top:18px">kg de producto final</div>
+        </div>
+        <div id="targetKgInfo" style="font-size:10px;color:var(--gris);margin-top:8px;display:none"></div>
+      </div>
+      <p style="font-size:10px;color:var(--gris);letter-spacing:1.5px;margin-bottom:11px;text-transform:uppercase">O edita cualquier cantidad — todo se recalcula solo</p>
+      <div style="overflow-x:auto">
+        <table class="tbl" id="ingTable">
+          <thead><tr><th>Ingrediente</th><th>Original</th><th>Tu cantidad</th><th>Escalado</th></tr></thead>
+          <tbody id="ingBody"></tbody>
+        </table>
+      </div>
+      <div class="out-grid" id="outGrid">
+        <div class="out-card"><span class="out-val" id="outRend">—</span><span class="out-lbl">Rendimiento</span></div>
+        <div class="out-card"><span class="out-val" id="outBag">—</span><span class="out-lbl">Baguettes (~110g)</span></div>
+        <div class="out-card"><span class="out-val" id="outCost">—</span><span class="out-lbl">Costo estimado</span></div>
+        <div class="out-card"><span class="out-val" id="outTime">—</span><span class="out-lbl">Tiempo est.</span></div>
+      </div>
+      <button class="btn btn-rojo" onclick="startGuide()" style="margin-top:16px">▶ Iniciar Receta Paso a Paso</button>
+      <button class="btn btn-verde" onclick="openFinishModal()" style="margin-top:8px">✓ Receta Terminada — Registrar Producción</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- INVENTARIO PRODUCTO FINAL -->
+<div class="page" id="page-inv">
+<div class="inner">
+  <div class="pills" id="invPills">
+    <div class="pill on" onclick="setInvFilter('all',this)">Todos</div>
+    <div class="pill" onclick="setInvFilter('salsa',this)">Salsas</div>
+    <div class="pill" onclick="setInvFilter('proteina',this)">Proteínas</div>
+    <div class="pill" onclick="setInvFilter('mayo',this)">Mayonesas</div>
+    <div class="pill" onclick="setInvFilter('base',this)">Bases</div>
+  </div>
+  <div id="invList"></div>
+</div>
+</div>
+
+<!-- INVENTARIO INSUMOS -->
+<div class="page" id="page-insumos">
+<div class="inner">
+  <div class="pills" id="insPills">
+    <div class="pill on" onclick="setInsFilter('all',this)">Todos</div>
+    <div class="pill" onclick="setInsFilter('Carniceria',this)">Carnicería</div>
+    <div class="pill" onclick="setInsFilter('Lacteos',this)">Lácteos</div>
+    <div class="pill" onclick="setInsFilter('Vegetales',this)">Vegetales</div>
+    <div class="pill" onclick="setInsFilter('Abarrotes',this)">Abarrotes</div>
+    <div class="pill" onclick="setInsFilter('Panaderia',this)">Panadería</div>
+    <div class="pill" onclick="setInsFilter('Fondo',this)">Fondo</div>
+  </div>
+  <div id="insList"></div>
+</div>
+</div>
+
+<!-- LISTA DE COMPRAS -->
+<div class="page" id="page-compras">
+<div class="inner">
+  <div class="card">
+    <div class="card-title"><span class="icon">🎯</span>Targets de Producto Final</div>
+    <p style="font-size:11px;color:var(--gris);margin-bottom:14px">Define cuánto quieres tener de cada producto. El semáforo muestra el estado actual vs tu meta.</p>
+    <div id="targetsGrid"></div>
+    <button class="btn btn-rojo" onclick="calcShoppingList()" style="margin-top:16px">🛒 Calcular Lista de Compras</button>
+  </div>
+  <div class="card" id="shoppingCard" style="display:none">
+    <div class="card-title"><span class="icon">🛒</span>Lista de Compras</div>
+    <p style="font-size:11px;color:var(--gris);margin-bottom:14px">Ingredientes necesarios para alcanzar tus targets:</p>
+    <div id="shoppingList"></div>
+    <button class="btn btn-outline" onclick="exportShoppingList()" style="margin-top:12px">↓ Exportar Lista</button>
+  </div>
+</div>
+</div>
+
+<!-- HISTORIAL -->
+<div class="page" id="page-hist">
+<div class="inner">
+  <div class="card">
+    <div class="card-title"><span class="icon">📋</span>Historial de Movimientos</div>
+    <div id="histList"><div class="empty"><div class="empty-icon">📦</div><div class="empty-txt">Sin movimientos aún.</div></div></div>
+  </div>
+</div>
+</div>
+
+<!-- CONFIG -->
+<div class="page" id="page-config">
+<div class="inner">
+  <div class="card">
+    <div class="card-title"><span class="icon">⚙️</span>Configuración General</div>
+    <div class="cfg-item">
+      <div><div class="cfg-name">Exportar a Excel</div><div class="cfg-desc">Descarga inventario, historial y costos en .xlsx</div></div>
+      <button class="btn btn-verde btn-sm" onclick="exportXLSX()">↓ Exportar</button>
+    </div>
+    <div class="cfg-item">
+      <div><div class="cfg-name">Importar precios (INSUMOS)</div><div class="cfg-desc">Actualiza precios desde la hoja INSUMOS del Excel</div></div>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('xlsxImport').click()">↑ Importar</button>
+      <input type="file" id="xlsxImport" accept=".xlsx" style="display:none" onchange="importPrices(this)">
+    </div>
+    <div class="cfg-item">
+      <div><div class="cfg-name">Exportar datos (backup JSON)</div><div class="cfg-desc">Respaldo completo de todos los datos</div></div>
+      <button class="btn btn-outline btn-sm" onclick="exportJSON()">↓ JSON</button>
+    </div>
+    <div class="cfg-item">
+      <div><div class="cfg-name">Importar datos (JSON)</div><div class="cfg-desc">Restaura datos desde un backup</div></div>
+      <button class="btn btn-outline btn-sm" onclick="document.getElementById('jsonImport').click()">↑ JSON</button>
+      <input type="file" id="jsonImport" accept=".json" style="display:none" onchange="importJSON(this)">
+    </div>
+    <div class="cfg-item">
+      <div><div class="cfg-name">Borrar todos los datos</div><div class="cfg-desc">Reinicia inventario e historial</div></div>
+      <button class="btn btn-rojo btn-sm" onclick="clearAll()">⚠ Borrar</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🎯</span>Niveles de Alerta — Producto Final</div>
+    <p style="font-size:11px;color:var(--gris);margin-bottom:14px">Define los umbrales en gramos para cada nivel. Se aplica a todos los productos finales.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="inp-group"><label class="lbl" style="color:#ff6666">🔴 Crítico (g)</label><input type="number" id="cfgCritico" placeholder="500"></div>
+      <div class="inp-group"><label class="lbl" style="color:#ff9944">🟠 Bajo (g)</label><input type="number" id="cfgBajo" placeholder="1500"></div>
+      <div class="inp-group"><label class="lbl" style="color:#ffcc44">🟡 Intermedio (g)</label><input type="number" id="cfgMedio" placeholder="3000"></div>
+      <div class="inp-group"><label class="lbl" style="color:#5dba8a">🟢 OK (g)</label><input type="number" id="cfgOk" placeholder="5000"></div>
+    </div>
+    <button class="btn btn-verde" onclick="saveAlertLevels()">Guardar Niveles</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">🥩</span>Niveles de Alerta — Insumos</div>
+    <p style="font-size:11px;color:var(--gris);margin-bottom:14px">Umbrales globales para insumos. Puedes editar individualmente en cada insumo.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <div class="inp-group"><label class="lbl" style="color:#ff6666">🔴 Crítico (g)</label><input type="number" id="cfgInsCritico" placeholder="200"></div>
+      <div class="inp-group"><label class="lbl" style="color:#ff9944">🟠 Bajo (g)</label><input type="number" id="cfgInsBajo" placeholder="500"></div>
+      <div class="inp-group"><label class="lbl" style="color:#ffcc44">🟡 Intermedio (g)</label><input type="number" id="cfgInsMedio" placeholder="1000"></div>
+      <div class="inp-group"><label class="lbl" style="color:#5dba8a">🟢 OK (g)</label><input type="number" id="cfgInsOk" placeholder="2000"></div>
+    </div>
+    <button class="btn btn-verde" onclick="saveInsAlertLevels()">Guardar Niveles Insumos</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">⚖️</span>Equivalencias por Baguette (g)</div>
+    <p style="font-size:11px;color:var(--gris);margin-bottom:14px">Gramos de cada producto que se usan en una baguette. Editable.</p>
+    <div id="equivEditor"></div>
+    <button class="btn btn-verde" onclick="saveEquiv()" style="margin-top:12px">Guardar Equivalencias</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title"><span class="icon">☁️</span>Supabase — Nube en Tiempo Real</div>
+    <div id="sbStatus" style="font-size:12px;padding:10px 14px;border-radius:8px;margin-bottom:16px;background:rgba(184,144,58,.08);border:1px solid var(--border);color:var(--text2)">
+      Verificando conexión...
+    </div>
+    <div style="background:rgba(45,106,79,.1);border:1px solid rgba(45,106,79,.3);border-radius:8px;padding:12px;margin-bottom:16px;font-size:11px;color:#5dba8a;line-height:1.6">
+      <strong>✓ Configurado</strong><br>
+      URL: zpykwocrlvntgpxxgkft.supabase.co<br>
+      Estado: Conectando al abrir...
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-outline" onclick="testSB()">Probar Conexión</button>
+      <button class="btn btn-verde" onclick="saveSB()">Reconectar</button>
+    </div>
+  </div>
+</div>
+</div>
+
+</div><!-- end main -->
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- MODAL ENTRADA -->
+<div class="overlay" id="mEntrada">
+<div class="modal">
+  <div class="modal-title">+ Entrada de Producto <button class="modal-close" onclick="closeM('mEntrada')">✕</button></div>
+  <div class="inp-group"><label class="lbl">¿Quién lo hizo?</label>
+    <div class="user-row" id="uEntrada">
+      <div class="chip on" onclick="selUser(this,'entrada')">Andres</div>
+      <div class="chip" onclick="selUser(this,'entrada')">Daniel</div>
+      <div class="chip" onclick="selUser(this,'entrada')">Camila</div>
+    </div>
+  </div>
+  <div class="inp-group"><label class="lbl">Producto</label>
+    <div class="sel-wrap"><select id="mEntProd"></select></div>
+  </div>
+  <div class="inp-group"><label class="lbl">¿Cuántas bolsas?</label>
+    <input type="number" id="mEntNum" min="1" max="20" value="1" onchange="buildBags('mEntBags','mEntNum')">
+  </div>
+  <div class="bags-wrap" id="mEntBags"></div>
+  <div class="btn-row">
+    <button class="btn btn-verde" onclick="confirmEntrada()">✓ Confirmar</button>
+    <button class="btn btn-ghost" onclick="closeM('mEntrada')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL SALIDA -->
+<div class="overlay" id="mSalida">
+<div class="modal">
+  <div class="modal-title">− Salida de Producto <button class="modal-close" onclick="closeM('mSalida')">✕</button></div>
+  <div class="inp-group"><label class="lbl">¿Quién lo saca?</label>
+    <div class="user-row" id="uSalida">
+      <div class="chip on" onclick="selUser(this,'salida')">Andres</div>
+      <div class="chip" onclick="selUser(this,'salida')">Daniel</div>
+      <div class="chip" onclick="selUser(this,'salida')">Camila</div>
+    </div>
+  </div>
+  <p id="mSalProd" style="font-family:'Cormorant Garamond',serif;font-size:22px;color:var(--dorado);margin-bottom:14px"></p>
+  <div class="inp-group"><label class="lbl">¿Cuántas bolsas sacas?</label><input type="number" id="mSalBolsas" min="1" value="1"></div>
+  <div class="inp-group"><label class="lbl">Peso total que sale (gramos)</label><input type="number" id="mSalPeso" placeholder="ej: 1000"></div>
+  <div class="btn-row">
+    <button class="btn btn-rojo" onclick="confirmSalida()">✓ Confirmar Salida</button>
+    <button class="btn btn-ghost" onclick="closeM('mSalida')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL REGISTRO POST-RECETA -->
+<div class="overlay" id="mReg">
+<div class="modal">
+  <div class="modal-title">🎉 Receta Terminada <button class="modal-close" onclick="closeM('mReg')">✕</button></div>
+  <div class="inp-group"><label class="lbl">¿Quién la hizo?</label>
+    <div class="user-row" id="uReg">
+      <div class="chip on" onclick="selUser(this,'reg')">Andres</div>
+      <div class="chip" onclick="selUser(this,'reg')">Daniel</div>
+      <div class="chip" onclick="selUser(this,'reg')">Camila</div>
+    </div>
+  </div>
+  <p id="mRegName" style="font-size:12px;color:var(--gris);margin-bottom:12px"></p>
+  <div class="inp-group"><label class="lbl">¿Cuántas bolsas obtuviste?</label>
+    <input type="number" id="mRegNum" min="1" max="30" value="1" onchange="buildBags('mRegBags','mRegNum')">
+  </div>
+  <div class="bags-wrap" id="mRegBags"></div>
+  <div id="mRegInsumos" style="margin-top:12px;padding:10px;background:var(--surface2);border-radius:8px;font-size:11px;color:var(--gris);display:none">
+    <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--dorado);margin-bottom:6px">Insumos que se descontarán:</div>
+    <div id="mRegInsumosList"></div>
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-verde" onclick="confirmReg()">✓ Guardar en Inventario</button>
+    <button class="btn btn-ghost" onclick="closeM('mReg')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL DETALLE INGREDIENTE (Producto Final) -->
+<div class="overlay" id="mDetalle">
+<div class="modal" style="max-height:85vh;overflow-y:auto">
+  <div class="modal-title"><span id="mDetalleTitulo">Detalle</span> <button class="modal-close" onclick="closeM('mDetalle')">✕</button></div>
+  <div id="mDetalleBody"></div>
+</div>
+</div>
+
+<!-- MODAL DETALLE INSUMO -->
+<div class="overlay" id="mInsumoDetalle">
+<div class="modal" style="max-height:85vh;overflow-y:auto">
+  <div class="modal-title"><span id="mInsDetTitulo">Insumo</span> <button class="modal-close" onclick="closeM('mInsumoDetalle')">✕</button></div>
+  <div id="mInsDetBody"></div>
+</div>
+</div>
+
+<!-- MODAL ENTRADA INSUMO -->
+<div class="overlay" id="mInsEntrada">
+<div class="modal">
+  <div class="modal-title">+ Entrada de Insumo <button class="modal-close" onclick="closeM('mInsEntrada')">✕</button></div>
+  <div class="inp-group"><label class="lbl">¿Quién lo compró?</label>
+    <div class="user-row" id="uInsEntrada">
+      <div class="chip on" onclick="selUser(this,'insEntrada')">Andres</div>
+      <div class="chip" onclick="selUser(this,'insEntrada')">Daniel</div>
+      <div class="chip" onclick="selUser(this,'insEntrada')">Camila</div>
+    </div>
+  </div>
+  <p id="mInsEntProd" style="font-family:'Cormorant Garamond',serif;font-size:20px;color:var(--dorado);margin-bottom:12px"></p>
+  <div class="inp-group"><label class="lbl">Cantidad comprada (gramos)</label>
+    <input type="number" id="mInsEntPeso" placeholder="ej: 1000">
+  </div>
+  <div class="btn-row">
+    <button class="btn btn-verde" onclick="confirmInsEntrada()">✓ Confirmar</button>
+    <button class="btn btn-ghost" onclick="closeM('mInsEntrada')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<!-- GUIDE OVERLAY -->
+<div class="guide-overlay" id="guideOverlay">
+  <div class="guide-hdr">
+    <div class="guide-title-row">
+      <div class="guide-recipe-name" id="gTitle"></div>
+      <button class="guide-close" onclick="closeGuide()">✕</button>
+    </div>
+    <div class="guide-progress-bar"><div class="guide-progress-fill" id="gProgress"></div></div>
+    <div class="guide-step-counter" id="gCounter"></div>
+  </div>
+  <div class="guide-body">
+    <div class="guide-body-inner" id="gBody"></div>
+  </div>
+  <div class="guide-footer">
+    <div class="guide-footer-inner">
+      <button class="btn btn-ghost" id="gPrevBtn" onclick="goPrev()" style="flex:0.6;margin-top:0">← Anterior</button>
+      <button class="btn btn-rojo" id="gNextBtn" onclick="goNext()" style="margin-top:0">Siguiente →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ================================================================
+// PRICES (loaded from localStorage or defaults)
+// ================================================================
+const DEFAULT_PRICES = {
+  'aceite_freir':30.55,'aceite_oliva':128.69,'aceite_trufa':1125.71,
+  'ajo':48,'ajo_negro':2000,'albahaca':106.67,'alcaparras':162.75,
+  'apio':20,'arugula':239.36,'azucar_morena':33.25,'caldo_pollo':55.5,
+  'cebolla':8,'cebolla_morada':11,'chipotle':137.88,'crema_lyncott':87.68,
+  'echalote':128,'eneldo':60,'espaldilla':100,'harina':14.32,
+  'huevo':3.67,'jitomate_cherry':63.33,'laurel':116,'limon_amarillo':35,
+  'mantequilla':174,'mayonesa':78.53,'miel':61.38,'mostaza':119.05,
+  'mostaza_dijon':170.30,'nuez':240,'pan':22,'pan_molido':171.43,
+  'papas':47.39,'pechuga_pollo':160.5,'perejil':50,'picana':320,
+  'pimienta':279,'pure_tomate':26.60,'queso_gouda':190.62,'queso_parm':320.59,
+  'romero':50,'sal':18.41,'salsa_inglesa':148.23,'sardinas':424.76,
+  'soya':250.98,'tomillo':110,'vacio':274.9,'vinagre_arroz':195.41,
+  'vinagre_bals':92.07,'vinagre_manzana':17,'vino_blanco':65.47,
+  'zanahoria':10,'vodka':0
+};
+
+// ================================================================
+// RECIPES DATA
+// ================================================================
+const R = {
+  dip:{
+    name:'DIP — Picaña Sous Vide',cat:'proteina',tiempo:'6h 30min',rendPct:.88,invId:'picana',
+    ing:[
+      {k:'picana',n:'Picaña',a:1000,u:'g'},
+      {k:'sal',n:'Sal',a:12,u:'g'},
+      {k:'pimienta',n:'Pimienta',a:3,u:'g'},
+    ],
+    steps:[
+      {t:'Preparar la picaña',x:'Cortar la grasa en cuadrícula sin tocar la carne. Sazonar ambos lados con <span class="sq">{sal}g de sal</span> y <span class="sq">{pimienta}g de pimienta</span>.',timer:null,ck:null,tip:'El corte en cuadrícula de la grasa permite que se derrita y aporte sabor durante el sellado final.'},
+      {t:'Sellar al vacío',x:'Meter la picaña en bolsa de alto vacío. Sellar por <strong>60 segundos</strong>.',timer:1,ck:null,tip:'La bolsa debe quedar sin aire visible — el vacío asegura transferencia de calor uniforme.'},
+      {t:'Precalentar sous vide',x:'Precalentar el agua a exactamente <strong>55.5°C</strong>. ⚠️ NO cocinar a 55°C — ese 0.5° de margen es de seguridad alimentaria obligatoria.',timer:null,ck:'El display del Wancle debe mostrar 55.5°C estable durante al menos 2 minutos antes de agregar la carne.',tip:null},
+      {t:'Cocinar sous vide 6 horas',x:'Sumergir la bolsa con los <span class="sq">{picana}g de picaña</span> completamente. Cocinar por <strong>6 horas exactas</strong>.',timer:360,ck:'El agua DEBE mantenerse a 55.5°C todo el tiempo. Si baja, puede haber riesgo de bacterias patógenas.',tip:'Pon la tapa al contenedor para evitar evaporación. Revisa la temperatura al inicio y a mitad de la cocción.'},
+      {t:'Retirar y secar',x:'Retirar la bolsa del agua. Abrir, tirar todos los líquidos de cocción. Secar la picaña completamente con servitoallas por todos los lados.',timer:null,ck:null,tip:'Secar bien es CRÍTICO para la costra. Cualquier humedad crea vapor en el sartén y arruina el sellado.'},
+      {t:'Sellar en sartén',x:'Calentar sartén de hierro fundido al máximo hasta que humee. Sellar la picaña por todos los lados, <strong>90 a 120 segundos por lado</strong>.',timer:2,ck:'Exterior: café oscuro uniforme con costra Maillard pronunciada. Interior sigue rosado-rojo brillante. Si se ve gris, se coció de más.',tip:'El sartén DEBE humear antes de agregar la carne. Sin calor extremo, no se forma la costra.'},
+      {t:'Enfriar y refrigerar',x:'Meter en bolsa ziploc y enfriar inmediatamente en baño maría inverso (agua con mucho hielo). Una vez fría, refrigerar.',timer:null,ck:'La carne debe alcanzar menos de 4°C antes de refrigerar. Usar máximo 3 días refrigerada si ya está cortada, 3 días si está entera.',tip:null},
+    ]
+  },
+  entrecot:{
+    name:'ENTRECÔT — Vacío Sous Vide',cat:'proteina',tiempo:'8-10h',rendPct:.90,invId:'vacio',
+    ing:[
+      {k:'vacio',n:'Vacío',a:1000,u:'g'},
+      {k:'sal',n:'Sal',a:12,u:'g'},
+      {k:'pimienta',n:'Pimienta',a:3,u:'g'},
+    ],
+    steps:[
+      {t:'Sazonar el vacío',x:'Sazonar ambos lados con <span class="sq">{sal}g de sal</span> y <span class="sq">{pimienta}g de pimienta</span>. Masajear bien para que penetre.',timer:null,ck:null,tip:'El vacío tiene mucha superficie — asegúrate de cubrir todos los lados incluyendo los bordes.'},
+      {t:'Sellar al vacío',x:'Meter el vacío en bolsa de alto vacío. Sellar por <strong>60 segundos</strong>.',timer:1,ck:null,tip:null},
+      {t:'Precalentar sous vide',x:'Precalentar el agua a exactamente <strong>55.5°C</strong>.',timer:null,ck:'Display del Wancle: 55.5°C estable antes de agregar la carne.',tip:null},
+      {t:'Cocinar sous vide 8 horas',x:'Sumergir los <span class="sq">{vacio}g de vacío</span> completamente. Cocinar por <strong>mínimo 8 horas, máximo 10 horas</strong>.',timer:480,ck:'Temperatura del agua: 55.5°C constante. El tiempo extra (hasta 10h) mejora la terneza sin cambiar el término.',tip:'El vacío es un corte más fibroso que la picaña — las 8-10 horas son necesarias para ablandar las fibras.'},
+      {t:'Retirar y secar',x:'Retirar, abrir bolsa, tirar líquidos. Secar completamente con servitoallas.',timer:null,ck:null,tip:'Más importante aún que en la picaña — el vacío suelta más líquido durante la cocción.'},
+      {t:'Sellar en sartén',x:'Sartén de hierro fundido al máximo. Sellar por <strong>90-120 segundos por lado</strong>.',timer:2,ck:'Costra café oscura por todos los lados. Interior rosado.',tip:null},
+      {t:'Rebanar y enfriar',x:'Rebanar en cortes delgados (para la baguette). Enfriar en baño maría inverso. Refrigerar.',timer:null,ck:'Rebanadas de 2-3mm de grosor para que entren bien en la baguette y cada mordida tenga carne en todo el pan.',tip:'Puedes porcionar en bolsas de 100g para tener todo listo al momento del ensamblaje.'},
+    ]
+  },
+  poivre:{
+    name:'POIVRE — Vacío + Au Poivre',cat:'proteina',tiempo:'8-10h + 30min',rendPct:.90,invId:'vacio',
+    ing:[
+      {k:'vacio',n:'Vacío',a:1000,u:'g'},
+      {k:'sal',n:'Sal',a:12,u:'g'},
+      {k:'pimienta',n:'Pimienta',a:3,u:'g'},
+    ],
+    steps:[
+      {t:'Vacío sous vide',x:'Esta baguette usa el mismo vacío sous vide del ENTRECÔT. Si ya lo tienes listo, pasa directo al ensamblaje.',timer:null,ck:null,tip:'Asegúrate de tener también la Salsa Au Poivre lista y caliente para el ensamblaje.'},
+      {t:'Sazonar y sellar',x:'Sazonar ambos lados con <span class="sq">{sal}g de sal</span> y <span class="sq">{pimienta}g de pimienta</span>. Meter en bolsa al vacío, sellar 60 segundos.',timer:1,ck:null,tip:null},
+      {t:'Cocinar sous vide',x:'Cocinar a <strong>55.5°C por 8 horas mínimo</strong>.',timer:480,ck:'Temperatura constante a 55.5°C durante toda la cocción.',tip:null},
+      {t:'Sellar y refrigerar',x:'Retirar, secar, sellar en sartén de hierro fundido 90-120 seg/lado. Rebanar delgado, enfriar, refrigerar.',timer:2,ck:'Costra pronunciada. Rebanadas de 2-3mm.',tip:null},
+    ]
+  },
+  pulledpork:{
+    name:'PULLED PORK (Baguette)',cat:'proteina',tiempo:'1h 15min',rendPct:.75,invId:'pulledpork',
+    ing:[
+      {k:'espaldilla',n:'Espaldilla de cerdo',a:1000,u:'g'},
+    ],
+    steps:[
+      {t:'Ver receta base',x:'Esta baguette usa el Pulled Pork como ingrediente base. Selecciona la receta "Pulled Pork (base)" en el escalador para hacerlo.',timer:null,ck:null,tip:null},
+    ]
+  },
+  vodka:{
+    name:'VODKA — Pollo Empanizado',cat:'proteina',tiempo:'20min',rendPct:.90,invId:'pollo',
+    ing:[
+      {k:'pechuga_pollo',n:'Pechuga de pollo',a:120,u:'g'},
+      {k:'harina',n:'Harina',a:22,u:'g'},
+      {k:'sal',n:'Sal',a:1,u:'g'},
+      {k:'pimienta',n:'Pimienta',a:1,u:'g'},
+      {k:'pan_molido',n:'Pan molido',a:40,u:'g'},
+    ],
+    steps:[
+      {t:'Estandarizar grosor',x:'Verificar que cada pechuga de <span class="sq">{pechuga_pollo}g</span> tenga grosor uniforme de ~1.5cm. Si es más gruesa, aplanar con mallet.',timer:null,ck:null,tip:'Grosor uniforme = cocción pareja. Pechugas de diferente grosor se queman por fuera antes de cocinarse adentro.'},
+      {t:'Preparar empanizado',x:'Bowl 1: <span class="sq">{harina}g de harina</span> + <span class="sq">{sal}g sal</span> + <span class="sq">{pimienta}g pimienta</span>. Bowl 2: 1 huevo batido. Bowl 3: <span class="sq">{pan_molido}g de pan molido</span>.',timer:null,ck:null,tip:null},
+      {t:'Empanizar',x:'Pasar por harina (cubrir todo, sacudir exceso) → huevo → pan molido (presionar suavemente para que adhiera bien por todos lados).',timer:null,ck:null,tip:'El orden importa: harina primero crea la base para que el huevo pegue. Sin harina, el huevo escurre.'},
+      {t:'Calentar aceite',x:'Calentar abundante aceite de canola/soya en cazuela. El aceite está listo cuando al agregar un poco de pan molido burbujea activamente (~170°C).',timer:null,ck:'Si el aceite humea, está demasiado caliente — bajar fuego. Si burbujea poco, aún falta.',tip:null},
+      {t:'Freír el pollo',x:'Freír la pechuga hasta dorado profundo. <strong>No mover hasta que se suelte sola</strong>.',timer:5,ck:'Exterior: café-dorado uniforme y crujiente. Interior completamente cocido sin partes rosas. Cortar el lado más grueso para verificar.',tip:'Si el exterior se quema antes de cocinarse adentro, el aceite está muy caliente. Bajar temperatura.'},
+    ]
+  },
+  aupoivre:{
+    name:'Salsa Au Poivre',cat:'salsa',tiempo:'30-35 min',rendPct:.76,invId:'aupoivre',
+    ing:[
+      {k:'mantequilla',n:'Mantequilla',a:300,u:'g'},
+      {k:'aceite_oliva',n:'Aceite de oliva',a:93,u:'g'},
+      {k:'echalote',n:'Echalote',a:1050,u:'g'},
+      {k:'ajo',n:'Ajo',a:62,u:'g'},
+      {k:'vino_blanco',n:'Vino blanco',a:587,u:'ml'},
+      {k:'caldo_pollo',n:'Caldo de pollo',a:957,u:'ml'},
+      {k:'soya',n:'Soya Kikkoman',a:93,u:'ml'},
+      {k:'crema_lyncott',n:'Crema Lyncott',a:834,u:'g'},
+      {k:'pimienta',n:'Pimienta negra',a:12,u:'g'},
+      {k:'sal',n:'Sal',a:9,u:'g'},
+    ],
+    steps:[
+      {t:'Preparar aromáticos',x:'Cortar los <span class="sq">{echalote}g de echalote</span> en láminas muy finas con mandolina. Picar los <span class="sq">{ajo}g de ajo</span> finamente.',timer:null,ck:null,tip:'Láminas finas de echalote = cocción más rápida y uniforme. Evita trozos gruesos que queden crudos.'},
+      {t:'Iniciar el fondo',x:'En olla grande: derretir <span class="sq">{mantequilla}g de mantequilla</span> con <span class="sq">{aceite_oliva}g de aceite de oliva</span> a fuego BAJO. Agregar echalotes y ajo.',timer:null,ck:null,tip:'Fuego BAJO es crítico — los aromáticos no deben dorarse ni un poco. Solo sudar.'},
+      {t:'Cocinar hasta translúcidos',x:'Cocinar a fuego bajo sin agregar color hasta que echalotes estén completamente suaves y translúcidos.',timer:7,ck:'Los echalotes deben verse casi transparentes, suaves al presionar con la cuchara. Sin rastro de blanco crudo ni color dorado.',tip:null},
+      {t:'Reducir el vino',x:'Agregar <span class="sq">{vino_blanco}ml de vino blanco</span> y reducir a fuego medio hasta que nappé.',timer:10,ck:'Nappé: moja una cuchara, voltéala, pasa el dedo por detrás — la línea debe quedar perfectamente limpia sin cerrarse.',tip:'Si queda exceso de grasa visible flotando, retira ~80-100g con una cuchara grande antes del siguiente paso.'},
+      {t:'Agregar soya y caldo',x:'Agregar <span class="sq">{soya}ml de soya Kikkoman</span> y <span class="sq">{caldo_pollo}ml de caldo de pollo</span>. Subir a fuego medio y hervir.',timer:10,ck:null,tip:'La soya aporta profundidad de sabor (umami) y color. Es parte fundamental del perfil de la salsa.'},
+      {t:'Terminar con crema',x:'Bajar fuego a mínimo. Agregar poco a poco los <span class="sq">{crema_lyncott}g de crema Lyncott</span> incorporando mientras revuelves. Agregar <span class="sq">{sal}g de sal</span> y <span class="sq">{pimienta}g de pimienta</span>.',timer:null,ck:null,tip:'Agrega la crema POCO A POCO, nunca de golpe. Temperatura alta + crema de golpe = salsa cortada.'},
+      {t:'Reducción final y nappé',x:'Cocinar a fuego mínimo, revolviendo ocasionalmente, hasta conseguir nappé perfecto.',timer:8,ck:'Color beige cremoso con puntos negros de pimienta visibles. La línea del dedo en la cuchara debe quedar completamente limpia. La salsa espesa más al enfriar.',tip:'Esta salsa espesa bastante al enfriar en refrigeración. No la sobrereduzcas o quedará muy densa para servir.'},
+    ]
+  },
+  salsavodka:{
+    name:'Salsa Vodka',cat:'salsa',tiempo:'45 min',rendPct:.69,invId:'salsavodka',
+    ing:[
+      {k:'aceite_oliva',n:'Aceite de oliva',a:180,u:'g'},
+      {k:'cebolla',n:'Cebolla (rallada)',a:427,u:'g'},
+      {k:'ajo',n:'Ajo',a:22,u:'g'},
+      {k:'jitomate_cherry',n:'Jitomate cherry',a:1350,u:'g'},
+      {k:'pure_tomate',n:'Puré de tomate Del Fuerte',a:540,u:'g'},
+      {k:'crema_lyncott',n:'Crema Lyncott',a:315,u:'g'},
+      {k:'sal',n:'Sal',a:13,u:'g'},
+      {k:'pimienta',n:'Pimienta negra',a:2,u:'g'},
+    ],
+    steps:[
+      {t:'Preparar la cebolla',x:'Rallar los <span class="sq">{cebolla}g de cebolla</span> en rayador de queso hasta conseguir consistencia de puré. Picar <span class="sq">{ajo}g de ajo</span> fino.',timer:null,ck:null,tip:'La cebolla rallada (no picada) se integra perfectamente en la salsa sin dejar trozos. Es lo que da cuerpo.'},
+      {t:'Base de cebolla',x:'En sartén grande: aceite <span class="sq">{aceite_oliva}g</span> a fuego BAJO. Agregar cebolla rallada y ajo. Cocinar SIN agregar color.',timer:10,ck:'La cebolla debe verse muy amarilla, completamente suave, sin rastros de agua. Sin nada de color dorado.',tip:'Paciencia aquí. La cebolla debe perder toda el agua primero. Si sube el fuego, se carameliza y cambia el perfil de sabor.'},
+      {t:'Tomates cherry',x:'Subir a fuego medio. Agregar los <span class="sq">{jitomate_cherry}g de jitomate cherry</span> cortados a la mitad. Mover constantemente.',timer:15,ck:'Los tomates deben soltar su líquido y este debe evaporarse completamente. La mezcla debe verse espesa y empezar a pegarse al fondo del sartén.',tip:'No agregues sal aún — la sal extrae agua de los tomates y alarga el proceso. Agrégala al final.'},
+      {t:'Integrar puré de tomate',x:'Agregar <span class="sq">{pure_tomate}g de puré de tomate Del Fuerte</span>. Cocinar revolviendo.',timer:4,ck:'La mezcla debe verse muy espesa, homogénea, casi como una pasta. Sin exceso de líquido.',tip:null},
+      {t:'⚠️ FLAMEAR CON VODKA',x:'<strong>APAGAR la campana extractora antes.</strong> Agregar 50-80ml de vodka directamente al sartén. Inclinar hacia la llama del fogón o usar encendedor largo para flamear.',timer:null,ck:'La llama azul dura 15-20 segundos y se apaga sola. Si no tienes fogón de gas: cocinar el vodka 2 minutos sin flamear.',tip:'⚠️ Seguridad: apaga la campana, ten a la mano una tapa para apagar la llama si es necesario. La llama es normal y se apaga sola.'},
+      {t:'Terminar con crema',x:'Bajar fuego a mínimo. Agregar los <span class="sq">{crema_lyncott}g de crema Lyncott</span> revolviendo. Agregar <span class="sq">{sal}g de sal</span> y <span class="sq">{pimienta}g de pimienta</span>.',timer:null,ck:null,tip:null},
+      {t:'Albahaca y reposo',x:'Agregar 10 hojas de albahaca fresca, revolver y APAGAR el fuego inmediatamente. Tapar y dejar reposar 5 minutos antes de usar o refrigerar.',timer:5,ck:'Color rojo-naranja cremoso brillante. Sabor: tomate concentrado + crema + ligero ahumado del flameo.',tip:'La albahaca va AL FINAL fuera del fuego. El calor residual la cocina perfecto. Con fuego directo se oxida y pierde color.'},
+    ]
+  },
+  caldo:{
+    name:'Caldo French Dip',cat:'salsa',tiempo:'2h',rendPct:.39,invId:'caldo',
+    ing:[
+      {k:'aceite_oliva',n:'Aceite de oliva',a:40,u:'g'},
+      {k:'cebolla_morada',n:'Cebolla morada (brunoise)',a:250,u:'g'},
+      {k:'zanahoria',n:'Zanahoria (brunoise)',a:250,u:'g'},
+      {k:'apio',n:'Apio (brunoise)',a:150,u:'g'},
+      {k:'ajo',n:'Ajo',a:20,u:'g'},
+      {k:'tomillo',n:'Tomillo',a:4,u:'g'},
+      {k:'laurel',n:'Laurel',a:4,u:'g'},
+      {k:'pimienta',n:'Pimienta entera',a:3,u:'g'},
+      {k:'vino_blanco',n:'Vino blanco',a:140,u:'ml'},
+      {k:'caldo_pollo',n:'Caldo de pollo',a:1700,u:'ml'},
+      {k:'sal',n:'Sal',a:5,u:'g'},
+    ],
+    steps:[
+      {t:'Cortar verduras en brunoise',x:'Cortar <span class="sq">{cebolla_morada}g cebolla morada</span>, <span class="sq">{zanahoria}g zanahoria</span> y <span class="sq">{apio}g apio</span> en brunoise (cubos muy pequeños, ~3mm).',timer:null,ck:null,tip:'Brunoise fino = más superficie de extracción = más sabor en menos tiempo. Usa mandolina si tienes.'},
+      {t:'Sudar las verduras',x:'En olla grande calentar <span class="sq">{aceite_oliva}g de aceite</span> a fuego BAJO. Agregar verduras y sudar lentamente.',timer:15,ck:'Las verduras deben suavizarse y volverse translúcidas sin dorarse. El color debe mantenerse claro.',tip:'Fuego bajo conserva los aromas naturales. Si se doran, el caldo tendrá sabor a asado en vez de aromático.'},
+      {t:'Agregar hierbas',x:'Agregar <span class="sq">{tomillo}g tomillo</span>, <span class="sq">{laurel}g laurel</span> y <span class="sq">{pimienta}g pimienta entera</span>. Revolver 2 minutos.',timer:2,ck:null,tip:null},
+      {t:'Reducir el vino',x:'Agregar <span class="sq">{vino_blanco}ml de vino blanco</span> y reducir hasta que nappé (~5 minutos).',timer:5,ck:null,tip:null},
+      {t:'Agregar caldo y reducir',x:'Agregar los <span class="sq">{caldo_pollo}ml de caldo de pollo</span>. Reducir 1 hora 30 minutos a fuego bajo constante.',timer:90,ck:null,tip:'No subas el fuego para acelerar — la reducción lenta extrae los azúcares naturales de las verduras.'},
+      {t:'Colar y enfriar',x:'Agregar <span class="sq">{sal}g de sal</span>, colar con chino presionando para extraer todo el líquido. Deben quedar ~1kg.',timer:null,ck:'Prueba de labio: los labios deben sentirse ligeramente pegajosos por la gelatina natural. Color ámbar dorado limpio y brillante.',tip:'Presionar las verduras coladas con el reverso de una cuchara para extraer hasta la última gota de caldo.'},
+    ]
+  },
+  cebolla:{
+    name:'Cebolla Caramelizada',cat:'base',tiempo:'1h 20min',rendPct:.63,invId:'cebolla',
+    ing:[
+      {k:'aceite_oliva',n:'Aceite canola',a:40,u:'g'},
+      {k:'cebolla',n:'Cebolla blanca',a:1650,u:'g'},
+      {k:'sal',n:'Sal',a:8,u:'g'},
+      {k:'vinagre_bals',n:'Vinagre balsámico',a:80,u:'ml'},
+      {k:'azucar_morena',n:'Azúcar morena',a:60,u:'g'},
+    ],
+    steps:[
+      {t:'Cortar la cebolla',x:'Cortar los <span class="sq">{cebolla}g de cebolla blanca</span> en pluma fina (julianas delgadas). Usar mandolina para uniformidad.',timer:null,ck:null,tip:'Pluma fina = caramelización más uniforme y textura sedosa final. Tiras gruesas quedan con textura.'},
+      {t:'Calentar aceite',x:'Calentar los <span class="sq">{aceite_oliva}g de aceite</span> en cazuela grande a fuego alto por 1-2 minutos. Cuando empiece a humear, agregar cebolla inmediatamente.',timer:2,ck:null,tip:'El golpe de calor inicial ayuda a que la cebolla suelte su agua rápidamente. Después bajaremos el fuego.'},
+      {t:'Cocinar con vapor',x:'Agregar <span class="sq">{sal}g de sal</span> a la cebolla. TAPAR para que se cocine en su propio vapor.',timer:15,ck:'Cuando el líquido de la cebolla haya evaporado completamente, destapar. Esto toma 15-20 minutos.',tip:'La sal acelera la liberación de agua de la cebolla. Tapar atrapa el vapor para cocción homogénea.'},
+      {t:'Dorar profundamente',x:'Destapar y mover constantemente a fuego medio-alto para conseguir un dorado profundo y uniforme. Raspar el fondo constantemente.',timer:35,ck:'Color ámbar oscuro uniforme como miel de maple. Es normal que el fondo de la cazuela se oscurezca — eso da sabor.',tip:'Si se empieza a quemar, bajar fuego y agregar 1-2 cucharadas de agua para desglasar el fondo.'},
+      {t:'Desglasar con balsámico',x:'Cuando las cebollas estén bien doradas, agregar <span class="sq">{vinagre_bals}ml de vinagre balsámico</span>. Revolver vigorosamente para desglasar el fondo.',timer:null,ck:null,tip:'El balsámico levanta todos los azúcares quemados del fondo (fond) que son concentrado de sabor.'},
+      {t:'Terminar con azúcar',x:'APAGAR fuego. Agregar <span class="sq">{azucar_morena}g de azúcar morena</span>. Revolver hasta que se derrita completamente y se incorpore de forma homogénea.',timer:null,ck:'Color ámbar oscuro y brillante. Textura sedosa, casi como jam de cebolla. Sabor: dulce profundo con toque ácido del balsámico.',tip:'Si sabe solo a dulce sin complejidad, le falta balsámico. Si sabe amargo, se quemó la cebolla.'},
+    ]
+  },
+  pulledporkbase:{
+    name:'Pulled Pork (base)',cat:'base',tiempo:'1h 15min',rendPct:.75,invId:'pulledpork',
+    ing:[
+      {k:'espaldilla',n:'Espaldilla de cerdo',a:1000,u:'g'},
+      {k:'aceite_oliva',n:'Aceite de oliva',a:40,u:'g'},
+      {k:'mostaza',n:'Mostaza',a:36,u:'g'},
+      {k:'sal',n:'Sal',a:13,u:'g'},
+      {k:'pimienta',n:'Pimienta',a:3,u:'g'},
+      {k:'cebolla',n:'Cebolla (trozos grandes)',a:180,u:'g'},
+      {k:'zanahoria',n:'Zanahoria (trozos grandes)',a:140,u:'g'},
+      {k:'apio',n:'Apio (trozos grandes)',a:100,u:'g'},
+      {k:'ajo',n:'Ajo',a:10,u:'g'},
+      {k:'romero',n:'Romero',a:10,u:'g'},
+      {k:'laurel',n:'Laurel',a:10,u:'g'},
+      {k:'vino_blanco',n:'Vino blanco',a:190,u:'ml'},
+      {k:'pure_tomate',n:'Puré de tomate',a:110,u:'g'},
+      {k:'caldo_pollo',n:'Caldo de pollo',a:760,u:'ml'},
+      {k:'vinagre_manzana',n:'Vinagre de manzana',a:70,u:'ml'},
+      {k:'azucar_morena',n:'Azúcar morena',a:90,u:'g'},
+    ],
+    steps:[
+      {t:'Marinar la espaldilla',x:'Combinar <span class="sq">{mostaza}g de mostaza</span> + <span class="sq">{sal}g de sal</span>. Embarrar por TODA la espaldilla de <span class="sq">{espaldilla}g</span> incluyendo los lados.',timer:null,ck:null,tip:'La mostaza actúa como binding agent — ayuda a que se forme una costra de sellado excepcional. No la saltes.'},
+      {t:'Sellar la espaldilla',x:'Calentar olla de presión a fuego ALTO 5 minutos. Agregar <span class="sq">{aceite_oliva}g de aceite</span> y sellar la espaldilla por TODOS los lados hasta dorado profundo.',timer:15,ck:'Color café muy oscuro, casi negro en algunas partes. Costra pronunciada por todos los lados.',tip:'Este sellado es lo que da el sabor ahumado y profundo al pulled pork. No escatimes tiempo aquí.'},
+      {t:'Dorar verduras',x:'Agregar <span class="sq">{cebolla}g cebolla</span>, <span class="sq">{zanahoria}g zanahoria</span> y <span class="sq">{apio}g apio</span> en trozos grandes. Cocinar hasta dorado profundo — buscar ligero quemado en las cebollas.',timer:10,ck:'Cebollas con ligero quemado en las puntas = profundidad de sabor. Es intencional.',tip:null},
+      {t:'Agregar puré y desglasar',x:'Agregar <span class="sq">{pure_tomate}g de puré de tomate</span>, cocinar 1 minuto. Agregar <span class="sq">{vino_blanco}ml de vino blanco</span> + <span class="sq">{caldo_pollo}ml de caldo</span>. Desglasar.',timer:2,ck:null,tip:null},
+      {t:'Acidez y dulzor',x:'Agregar <span class="sq">{vinagre_manzana}ml de vinagre de manzana</span> y <span class="sq">{azucar_morena}g de azúcar morena</span>. Revolver.',timer:null,ck:null,tip:'El balance vinagre-azúcar es lo que da el perfil de BBQ. No omitas ninguno de los dos.'},
+      {t:'Cocinar a presión',x:'Cerrar tapa de olla de presión. Cocinar a fuego MEDIO. Cuando empiece a sacar vapor fuerte, bajar a fuego BAJO.',timer:60,ck:null,tip:'⚠️ NUNCA fuerces la tapa mientras salga vapor. La presión puede causar quemaduras graves.'},
+      {t:'Despresurizar y deshebradar',x:'Cuando NO salga vapor ni ruido y la tapa NO tenga resistencia: abrir. Retirar la carne y deshebrar con dos tenedores.',timer:null,ck:'La carne debe deshebrar fácilmente sin esfuerzo. Si hay resistencia, faltó tiempo — cierra y cocina 15 min más.',tip:'Mezcla la carne con el caldo concentrado que quedó en la olla para mantenerla jugosa y con más sabor.'},
+    ]
+  },
+  echalote:{
+    name:'Echalote Frito',cat:'base',tiempo:'10-15 min',rendPct:.60,invId:'echalote',
+    ing:[
+      {k:'echalote',n:'Echalote',a:1000,u:'g'},
+      {k:'harina',n:'Harina',a:300,u:'g'},
+    ],
+    steps:[
+      {t:'Cortar en láminas',x:'Cortar los <span class="sq">{echalote}g de echalote</span> en láminas muy finas y uniformes con mandolina.',timer:null,ck:null,tip:'Mandolina obligatoria — el cuchillo no da la uniformidad necesaria para que todo se fría parejo.'},
+      {t:'Enharinar y freír INMEDIATAMENTE',x:'Combinar echalotes + <span class="sq">{harina}g de harina</span> en bowl. Retirar exceso sacudiendo. <strong>FREÍR INMEDIATAMENTE</strong> en aceite a 170°C.',timer:4,ck:'Dorado claro-uniforme. Crujiente al tacto. NO dorado oscuro.',tip:'⚠️ CRÍTICO: Si dejas reposar después de enharinar, el echalote suelta humedad y pierde el crunch para siempre. Enharinar y directo al aceite.'},
+      {t:'Retirar y secar',x:'Retirar con pinzas a papel absorbente. Usar inmediatamente o en las próximas 2 horas.',timer:null,ck:'Si se quemaron (café oscuro): NO los uses. El sabor amargo arruinará el sandwich.',tip:'El echalote frito es el elemento más volátil — pierde crunch con la humedad. Siempre hacer fresco.'},
+    ]
+  },
+  mayoajneg:{
+    name:'Mayo Ajo Negro',cat:'mayo',tiempo:'10 min',rendPct:1.0,invId:'mayoajneg',
+    ing:[
+      {k:'mayonesa',n:"Mayonesa Hellman's",a:945,u:'g'},
+      {k:'ajo_negro',n:'Ajo negro (pelado)',a:30,u:'g'},
+      {k:'vinagre_arroz',n:'Vinagre de arroz',a:20,u:'g'},
+      {k:'sal',n:'Sal',a:5,u:'g'},
+    ],
+    steps:[
+      {t:'Base de licuado',x:'Poner 1/4 de los <span class="sq">{mayonesa}g de mayonesa</span> (~235g) en bowl alto y estrecho. Agregar los <span class="sq">{ajo_negro}g de ajo negro pelado</span> + <span class="sq">{vinagre_arroz}g de vinagre de arroz</span>.',timer:null,ck:null,tip:'El ajo negro se pega mucho a su cáscara — despégalo con paciencia. Es normal que esté muy blando y pegajoso.'},
+      {t:'Licuar el ajo negro',x:'Licuar con brazo de inmersión hasta que el ajo negro quede completamente deshecho y sin grumos.',timer:null,ck:'La mezcla debe verse de color beige oscuro uniforme, sin puntos negros visibles de ajo.',tip:'El ajo negro tiene una textura muy suave — se licúa fácil. No más de 30 segundos de licuado.'},
+      {t:'Integrar resto de mayo',x:'Agregar el resto de la mayonesa y los <span class="sq">{sal}g de sal</span>. Homogenizar con cuchara (NO brazo de inmersión).',timer:null,ck:'Color beige oscuro/marrón uniforme. Sabor: dulce-umami terroso. Si sabe amargo, el ajo negro estaba pasado.',tip:'Usar brazo de inmersión en esta etapa puede romper la emulsión de la mayonesa. Solo cuchara.'},
+    ]
+  },
+  mayotrufa:{
+    name:'Mayo Trufa',cat:'mayo',tiempo:'10 min',rendPct:1.0,invId:'mayotrufa',
+    ing:[
+      {k:'mayonesa',n:"Mayonesa Hellman's",a:795,u:'g'},
+      {k:'miel',n:'Miel maple',a:49,u:'g'},
+      {k:'aceite_trufa',n:'Aceite de trufa',a:116,u:'g'},
+      {k:'sal',n:'Sal',a:22,u:'g'},
+      {k:'vinagre_arroz',n:'Vinagre de arroz',a:33,u:'g'},
+    ],
+    steps:[
+      {t:'Combinar todos',x:'En un bowl, combinar los <span class="sq">{mayonesa}g de mayonesa</span>, <span class="sq">{miel}g de miel maple</span>, <span class="sq">{aceite_trufa}g de aceite de trufa</span>, <span class="sq">{sal}g de sal</span> y <span class="sq">{vinagre_arroz}g de vinagre de arroz</span>.',timer:null,ck:null,tip:'⚠️ El aceite de trufa es el ingrediente más caro del menú ($1,125/kg). Pesar con báscula exacta siempre.'},
+      {t:'Mezclar con cuchara',x:'Mezclar con cuchara o espátula hasta homogenizar completamente. <strong>NO usar brazo de inmersión.</strong>',timer:null,ck:'Color blanco-crema con aroma intenso a trufa. Sabor: dulce de maple + umami de trufa + acidez suave.',tip:'El brazo de inmersión puede romper la emulsión de la mayonesa. Cuchara siempre para esta mayo.'},
+    ]
+  },
+  mayochipotle:{
+    name:'Mayo Chipotle',cat:'mayo',tiempo:'10 min',rendPct:1.0,invId:'mayochipotle',
+    ing:[
+      {k:'mayonesa',n:"Mayonesa Hellman's",a:790,u:'g'},
+      {k:'chipotle',n:'Chipotle en adobo',a:80,u:'g'},
+      {k:'salsa_inglesa',n:'Salsa inglesa',a:20,u:'g'},
+      {k:'vinagre_arroz',n:'Vinagre de arroz',a:50,u:'g'},
+      {k:'ajo',n:'Ajo',a:60,u:'g'},
+      {k:'sal',n:'Sal',a:3,u:'g'},
+    ],
+    steps:[
+      {t:'Licuar todo',x:'Vaciar todos los ingredientes en bowl: <span class="sq">{mayonesa}g mayonesa</span>, <span class="sq">{chipotle}g chipotle en adobo</span>, <span class="sq">{salsa_inglesa}g salsa inglesa</span>, <span class="sq">{vinagre_arroz}g vinagre arroz</span>, <span class="sq">{ajo}g ajo</span>, <span class="sq">{sal}g sal</span>.',timer:null,ck:null,tip:null},
+      {t:'Homogenizar',x:'Licuar con brazo de inmersión hasta conseguir mezcla completamente homogénea sin grumos de chipotle visibles.',timer:null,ck:'Color café-naranja uniforme. Sabor: picante de chipotle + fondo ahumado + acidez del vinagre. Si sabe solo a mayonesa, agregar 10g más de chipotle.',tip:'Probar y ajustar. Esta mayo tiene el doble de vida útil que la de ajo negro — dura bien hasta 7 días en fridge.'},
+    ]
+  },
+  mayodip:{
+    name:'Mayo French Dip',cat:'mayo',tiempo:'15 min',rendPct:1.0,invId:'mayodip',
+    ing:[
+      {k:'eneldo',n:'Eneldo (picado fino)',a:31,u:'g'},
+      {k:'ajo',n:'Ajo',a:20,u:'g'},
+      {k:'mayonesa',n:"Mayonesa Hellman's",a:890,u:'g'},
+      {k:'mostaza_dijon',n:'Mostaza Dijon Maille',a:62,u:'g'},
+      {k:'salsa_inglesa',n:'Salsa inglesa',a:20,u:'g'},
+      {k:'vinagre_arroz',n:'Vinagre de arroz',a:52,u:'g'},
+      {k:'sal',n:'Sal',a:5,u:'g'},
+      {k:'pimienta',n:'Pimienta',a:1,u:'g'},
+    ],
+    steps:[
+      {t:'Picar aromáticos',x:'Picar los <span class="sq">{eneldo}g de eneldo</span> finamente. Picar o rallar con microplane los <span class="sq">{ajo}g de ajo</span>.',timer:null,ck:null,tip:'Usar microplane para el ajo da una textura más fina que se integra mejor en la mayo.'},
+      {t:'Combinar y mezclar',x:'En bowl combinar TODOS los ingredientes y mezclar hasta homogenizar completamente.',timer:null,ck:'Sabor: tangy + herbáceo + mostaza. Perfectamente balanceado. Si domina la mostaza, agregar 10g más de mayonesa.',tip:'Esta mayo dura mínimo 5 días, hasta 7. Probar al 5to día para asegurar calidad antes de usar.'},
+    ]
+  }
+};
+
+// ================================================================
+// INSUMOS (materias primas + preparados)
+// ================================================================
+const INSUMOS = [
+  {id:'picana',n:'Picaña',cat:'Carniceria',precio:320},
+  {id:'vacio_raw',n:'Vacío',cat:'Carniceria',precio:274.9},
+  {id:'espaldilla',n:'Espaldilla de Cerdo',cat:'Carniceria',precio:100},
+  {id:'pechuga_pollo',n:'Pechuga de Pollo',cat:'Carniceria',precio:160.5},
+  {id:'mayonesa',n:'Mayonesa Hellman\'s',cat:'Lacteos',precio:78.53},
+  {id:'queso_gouda',n:'Queso Gouda',cat:'Lacteos',precio:190.62},
+  {id:'queso_parm',n:'Queso Parmesano',cat:'Lacteos',precio:320.59},
+  {id:'mantequilla',n:'Mantequilla',cat:'Lacteos',precio:174},
+  {id:'crema_lyncott',n:'Crema Lyncott',cat:'Lacteos',precio:87.68},
+  {id:'pan',n:'Pan Baguette',cat:'Panaderia',precio:22},
+  {id:'pan_molido',n:'Pan Molido',cat:'Panaderia',precio:171.43},
+  {id:'cebolla_raw',n:'Cebolla Blanca',cat:'Vegetales',precio:8},
+  {id:'cebolla_morada',n:'Cebolla Morada',cat:'Vegetales',precio:11},
+  {id:'echalote_raw',n:'Echalote',cat:'Vegetales',precio:128},
+  {id:'ajo',n:'Ajo',cat:'Vegetales',precio:48},
+  {id:'ajo_negro',n:'Ajo Negro',cat:'Vegetales',precio:2000},
+  {id:'zanahoria',n:'Zanahoria',cat:'Vegetales',precio:10},
+  {id:'apio',n:'Apio',cat:'Vegetales',precio:20},
+  {id:'jitomate_cherry',n:'Jitomate Cherry',cat:'Vegetales',precio:63.33},
+  {id:'arugula',n:'Arúgula',cat:'Vegetales',precio:239.36},
+  {id:'albahaca',n:'Albahaca',cat:'Vegetales',precio:106.67},
+  {id:'perejil',n:'Perejil',cat:'Vegetales',precio:50},
+  {id:'eneldo',n:'Eneldo',cat:'Vegetales',precio:60},
+  {id:'limon',n:'Limón Amarillo',cat:'Vegetales',precio:35},
+  {id:'aceite_oliva',n:'Aceite de Oliva',cat:'Abarrotes',precio:128.69},
+  {id:'aceite_freir',n:'Aceite para Freír',cat:'Abarrotes',precio:30.55},
+  {id:'aceite_trufa',n:'Aceite de Trufa',cat:'Abarrotes',precio:1125.71},
+  {id:'sal',n:'Sal',cat:'Abarrotes',precio:18.41},
+  {id:'pimienta',n:'Pimienta Negra',cat:'Abarrotes',precio:279},
+  {id:'harina',n:'Harina',cat:'Abarrotes',precio:14.32},
+  {id:'vinagre_bals',n:'Vinagre Balsámico',cat:'Abarrotes',precio:92.07},
+  {id:'vinagre_arroz',n:'Vinagre de Arroz',cat:'Abarrotes',precio:195.41},
+  {id:'vinagre_manzana',n:'Vinagre de Manzana',cat:'Abarrotes',precio:17},
+  {id:'vino_blanco',n:'Vino Blanco',cat:'Abarrotes',precio:65.47},
+  {id:'caldo_pollo',n:'Caldo de Pollo',cat:'Abarrotes',precio:55.5},
+  {id:'pure_tomate',n:'Puré de Tomate',cat:'Abarrotes',precio:26.60},
+  {id:'chipotle',n:'Chipotle en Adobo',cat:'Abarrotes',precio:137.88},
+  {id:'salsa_inglesa',n:'Salsa Inglesa',cat:'Abarrotes',precio:148.23},
+  {id:'mostaza_dijon',n:'Mostaza Dijon',cat:'Abarrotes',precio:170.30},
+  {id:'mostaza',n:'Mostaza Francesa',cat:'Abarrotes',precio:119.05},
+  {id:'soya',n:'Salsa de Soya',cat:'Abarrotes',precio:250.98},
+  {id:'azucar_morena',n:'Azúcar Morena',cat:'Abarrotes',precio:33.25},
+  {id:'miel',n:'Miel Maple',cat:'Abarrotes',precio:61.38},
+  {id:'alcaparras',n:'Alcaparras',cat:'Abarrotes',precio:162.75},
+  {id:'sardinas',n:'Sardinas',cat:'Abarrotes',precio:424.76},
+  {id:'nuez',n:'Nuez Pecana',cat:'Abarrotes',precio:240},
+  {id:'papas',n:'Papas a la Francesa',cat:'Abarrotes',precio:47.39},
+  {id:'romero',n:'Romero',cat:'Abarrotes',precio:50},
+  {id:'laurel',n:'Laurel',cat:'Abarrotes',precio:116},
+  {id:'tomillo',n:'Tomillo',cat:'Abarrotes',precio:110},
+  {id:'huevo',n:'Huevo',cat:'Abarrotes',precio:3.67},
+  {id:'vodka',n:'Vodka',cat:'Abarrotes',precio:0},
+  // Preparados FONDO
+  {id:'ins_aupoivre',n:'Salsa Au Poivre',cat:'Fondo',precio:133.12},
+  {id:'ins_salsavodka',n:'Salsa Vodka',cat:'Fondo',precio:72.67},
+  {id:'ins_caldo',n:'Caldo French Dip',cat:'Fondo',precio:119.71},
+  {id:'ins_cebolla',n:'Cebolla Caramelizada',cat:'Fondo',precio:25.24},
+  {id:'ins_echalote',n:'Echalote Frito',cat:'Fondo',precio:144.52},
+  {id:'ins_picana',n:'Roast Beef / Picaña SV',cat:'Fondo',precio:321.06},
+  {id:'ins_vacio',n:'Vacío Sous Vide',cat:'Fondo',precio:275.96},
+  {id:'ins_pulledpork',n:'Pulled Pork',cat:'Fondo',precio:183.60},
+  {id:'ins_pollo',n:'Pollo Empanizado',cat:'Fondo',precio:136.94},
+  {id:'ins_mayoajneg',n:'Mayo Ajo Negro',cat:'Fondo',precio:138.21},
+  {id:'ins_mayotrufa',n:'Mayo Trufa',cat:'Fondo',precio:203.30},
+  {id:'ins_mayochipotle',n:'Mayo Chipotle',cat:'Fondo',precio:88.07},
+  {id:'ins_mayodip',n:'Mayo French Dip',cat:'Fondo',precio:96.77},
+];
+
+// Ingredientes que se descuentan de insumos al terminar cada receta
+const RECIPE_INSUMOS = {
+  aupoivre: [{id:'mantequilla',ratio:0.14},{id:'aceite_oliva',ratio:0.03},{id:'echalote_raw',ratio:0.34},{id:'ajo',ratio:0.019},{id:'vino_blanco',ratio:0.194},{id:'caldo_pollo',ratio:0.31},{id:'soya',ratio:0.029},{id:'crema_lyncott',ratio:0.267},{id:'pimienta',ratio:0.0034},{id:'sal',ratio:0.0034}],
+  salsavodka: [{id:'aceite_oliva',ratio:0.096},{id:'cebolla_raw',ratio:0.192},{id:'jitomate_cherry',ratio:0.6},{id:'ajo',ratio:0.014},{id:'pure_tomate',ratio:0.24},{id:'crema_lyncott',ratio:0.144},{id:'albahaca',ratio:0.004},{id:'sal',ratio:0.006},{id:'pimienta',ratio:0.002},{id:'vodka',ratio:0.065}],
+  caldo: [{id:'aceite_oliva',ratio:0.04},{id:'cebolla_morada',ratio:0.25},{id:'zanahoria',ratio:0.25},{id:'apio',ratio:0.15},{id:'ajo',ratio:0.02},{id:'tomillo',ratio:0.004},{id:'laurel',ratio:0.004},{id:'pimienta',ratio:0.003},{id:'vino_blanco',ratio:0.14},{id:'caldo_pollo',ratio:1.7},{id:'sal',ratio:0.005}],
+  cebolla: [{id:'aceite_oliva',ratio:0.03},{id:'cebolla_raw',ratio:1.65},{id:'sal',ratio:0.008},{id:'vinagre_bals',ratio:0.08},{id:'azucar_morena',ratio:0.06}],
+  echalote: [{id:'echalote_raw',ratio:1.0},{id:'harina',ratio:0.3},{id:'aceite_freir',ratio:0.4}],
+  dip: [{id:'picana',ratio:1.0},{id:'sal',ratio:0.012},{id:'pimienta',ratio:0.003}],
+  entrecot: [{id:'vacio_raw',ratio:1.0},{id:'sal',ratio:0.012},{id:'pimienta',ratio:0.003}],
+  poivre: [{id:'vacio_raw',ratio:1.0},{id:'sal',ratio:0.012},{id:'pimienta',ratio:0.003}],
+  pulledporkbase: [{id:'espaldilla',ratio:1.0},{id:'mostaza',ratio:0.036},{id:'sal',ratio:0.0135},{id:'pimienta',ratio:0.0027},{id:'aceite_oliva',ratio:0.03},{id:'cebolla_raw',ratio:0.18},{id:'zanahoria',ratio:0.144},{id:'apio',ratio:0.1035},{id:'ajo',ratio:0.0144},{id:'romero',ratio:0.00135},{id:'laurel',ratio:0.0009},{id:'vino_blanco',ratio:0.189},{id:'pure_tomate',ratio:0.1125},{id:'caldo_pollo',ratio:0.756},{id:'vinagre_manzana',ratio:0.072},{id:'azucar_morena',ratio:0.09}],
+  mayoajneg: [{id:'mayonesa',ratio:0.945},{id:'ajo_negro',ratio:0.03},{id:'vinagre_arroz',ratio:0.02},{id:'sal',ratio:0.005}],
+  mayotrufa: [{id:'mayonesa',ratio:0.795},{id:'miel',ratio:0.049},{id:'aceite_trufa',ratio:0.116},{id:'sal',ratio:0.022},{id:'vinagre_arroz',ratio:0.033}],
+  mayochipotle: [{id:'mayonesa',ratio:0.79},{id:'chipotle',ratio:0.08},{id:'salsa_inglesa',ratio:0.02},{id:'vinagre_arroz',ratio:0.05},{id:'ajo',ratio:0.06},{id:'sal',ratio:0.003}],
+  mayodip: [{id:'eneldo',ratio:0.031},{id:'ajo',ratio:0.02},{id:'mayonesa',ratio:0.89},{id:'mostaza_dijon',ratio:0.062},{id:'salsa_inglesa',ratio:0.02},{id:'vinagre_arroz',ratio:0.052},{id:'sal',ratio:0.005},{id:'pimienta',ratio:0.001}],
+};
+
+// Equivalencias en gramos por baguette (editable desde Config)
+const DEFAULT_EQUIV = {
+  picana:140, caldo:200, cebolla:70,
+  vacio:100, aupoivre:94,
+  pulledpork:140,
+  salsavodka:150, pollo:130,
+  mayoajneg:40, mayodip:40, mayotrufa:16, mayochipotle:14,
+  echalote:30,
+};
+
+// Qué baguettes usan cada producto final
+const PROD_BAGUETTES = {
+  picana:['DIP'], caldo:['DIP'], cebolla:['DIP','VODKA'],
+  vacio:['ENTRECÔT','POIVRE'], aupoivre:['POIVRE'],
+  pulledpork:['PULLED PORK'],
+  salsavodka:['VODKA'], pollo:['VODKA'],
+  mayoajneg:['POIVRE','VODKA'], mayodip:['DIP'],
+  mayotrufa:['PULLED PORK'], mayochipotle:['PULLED PORK'],
+  echalote:['ENTRECÔT'],
+};
+
+// Niveles de alerta por defecto (en gramos)
+const DEFAULT_LEVELS = {critico:500,bajo:1500,medio:3000,ok:5000};
+const DEFAULT_INS_LEVELS = {critico:200,bajo:500,medio:1000,ok:2000};
+const INV = [
+  {id:'aupoivre',n:'Salsa Au Poivre',cat:'salsa',min:3000,bolsa:1000},
+  {id:'salsavodka',n:'Salsa Vodka',cat:'salsa',min:3000,bolsa:1000},
+  {id:'caldo',n:'Caldo French Dip',cat:'salsa',min:3000,bolsa:1000},
+  {id:'cebolla',n:'Cebolla Caramelizada',cat:'base',min:3000,bolsa:1000},
+  {id:'echalote',n:'Echalote Frito',cat:'base',min:3000,bolsa:1000},
+  {id:'picana',n:'Picaña Sous Vide',cat:'proteina',min:1500,bolsa:500},
+  {id:'vacio',n:'Vacío Sous Vide',cat:'proteina',min:1500,bolsa:500},
+  {id:'pulledpork',n:'Pulled Pork',cat:'proteina',min:1500,bolsa:500},
+  {id:'pollo',n:'Pollo Empanizado',cat:'proteina',min:1500,bolsa:500},
+  {id:'mayoajneg',n:'Mayo Ajo Negro',cat:'mayo',min:1000,bolsa:1000},
+  {id:'mayotrufa',n:'Mayo Trufa',cat:'mayo',min:1000,bolsa:1000},
+  {id:'mayochipotle',n:'Mayo Chipotle',cat:'mayo',min:1000,bolsa:1000},
+  {id:'mayodip',n:'Mayo French Dip',cat:'mayo',min:1000,bolsa:1000},
+];
+
+// ================================================================
+// SUPABASE CONFIG (CREDENCIALES HARDCODEADAS)
+// ================================================================
+const SUPABASE_URL = 'https://zpykwocrlvntgpxxgkft.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_xlx3kxw4jdRqYFKHDcNvzw_lUbXn9yY';
+
+let _sb = null;
+
+function getSB(){
+  if(!_sb) _sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  return _sb;
+}
+
+function setSBStatus(msg, color='var(--text2)'){
+  const el = document.getElementById('sbStatus');
+  if(el) el.innerHTML = `<span style="color:${color}">${msg}</span>`;
+  const dot = document.getElementById('sbDot');
+  if(dot){
+    if(color==='#5dba8a'){dot.textContent='☁ Online';dot.style.color='#5dba8a';}
+    else if(color==='var(--dorado)'){dot.textContent='☁ Sync...';dot.style.color='var(--dorado)';}
+    else{dot.textContent='☁ Offline';dot.style.color='#ff6666';}
+  }
+}
+
+async function testSB(){
+  setSBStatus('⟳ Probando...', 'var(--dorado)');
+  try{
+    const client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const {error} = await client.from('fondo_inventory').select('id').limit(1);
+    if(error) throw error;
+    setSBStatus('✓ Conexión exitosa — sincronización en tiempo real activa', '#5dba8a');
+    showToast('✓ Conexión validada');
+  }catch(e){
+    setSBStatus('❌ Error: '+e.message, '#ff6666');
+    showToast('❌ Error de conexión');
+  }
+}
+
+async function refreshFromSB(){
+  const btn = document.getElementById('refreshBtn');
+  btn.textContent = '⟳ Sincronizando...';
+  btn.disabled = true;
+  
+  try{
+    const sb = getSB();
+    if(!sb) throw new Error('Sin conexión');
+    
+    // Cargar inventario
+    const {data:inv} = await sb.from('fondo_inventory').select('*');
+    if(inv) inv.forEach(r => S.inv[r.id] = r.stock);
+
+    // Cargar historial
+    const {data:hist} = await sb.from('fondo_history').select('*').order('created_at',{ascending:false}).limit(200);
+    if(hist) S.hist = hist.map(h=>({
+      tipo: h.tipo, nombre: h.producto, weights: h.pesos||[],
+      user: h.usuario, total: h.peso_total,
+      time: new Date(h.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+
+            new Date(h.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
+    }));
+
+    // Cargar precios
+    const {data:prices} = await sb.from('fondo_prices').select('*');
+    if(prices.length) prices.forEach(p => S.prices[p.ingrediente] = p.costo_kg);
+
+    renderDash(); renderInv(); renderHist(); updateAlertPill();
+    showToast('✓ Datos actualizados desde nube');
+    
+  }catch(e){
+    showToast('❌ Error al sincronizar: '+e.message);
+  }finally{
+    btn.textContent = '🔄 Actualizar';
+    btn.disabled = false;
+  }
+}
+
+async function initSB(){
+  const sb = getSB();
+  if(!sb){ setSBStatus('Sin conexión a Supabase'); return; }
+  setSBStatus('⟳ Conectando...', 'var(--dorado)');
+  try{
+    const {data:inv, error:e1} = await sb.from('fondo_inventory').select('*');
+    if(e1) throw e1;
+    inv.forEach(r => S.inv[r.id] = r.stock);
+
+    const {data:hist, error:e2} = await sb.from('fondo_history').select('*').order('created_at',{ascending:false}).limit(200);
+    if(e2) throw e2;
+    S.hist = hist.map(h=>({
+      tipo:h.tipo, nombre:h.producto, weights:h.pesos||[],
+      user:h.usuario, total:h.peso_total,
+      time:new Date(h.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+
+           new Date(h.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
+    }));
+
+    const {data:prices, error:e3} = await sb.from('fondo_prices').select('*');
+    if(e3) throw e3;
+    if(prices.length) prices.forEach(p => S.prices[p.ingrediente] = p.costo_kg);
+
+    const {data:ins, error:e4} = await sb.from('fondo_insumos').select('*');
+    if(!e4 && ins) ins.forEach(r => S.insumos[r.id] = r.stock);
+
+    setSBStatus('✓ Conectado — datos sincronizados', '#5dba8a');
+    renderDash(); renderInv(); renderHist(); updateAlertPill();
+    showToast('✓ Datos sincronizados desde nube');
+  }catch(e){
+    setSBStatus('❌ '+e.message+' — modo local', '#ff6666');
+    showToast('⚠ Trabajando sin nube');
+  }
+}
+
+// ================================================================
+// STATE
+// ================================================================
+let S = {
+  inv:{}, hist:[], prices:{},
+  insumos:{}, insHist:[],
+  equiv:{...DEFAULT_EQUIV},
+  levels:{...DEFAULT_LEVELS},
+  insLevels:{...DEFAULT_INS_LEVELS},
+  targets:{},
+  currentRec:null, scaleFactor:1,
+  invFilter:'all', insFilter:'all',
+  guide:{recKey:null,step:0,scaledIng:[]},
+  users:{entrada:'Andres',salida:'Andres',reg:'Andres',insEntrada:'Andres'},
+  timer:{interval:null,remaining:0,running:false,totalSecs:0}
+};
+
+function loadS(){
+  const d=localStorage.getItem('fondo_v3');
+  if(d){
+    const p=JSON.parse(d);
+    S.inv=p.inv||{};S.hist=p.hist||[];S.prices=p.prices||{};
+    S.insumos=p.insumos||{};S.insHist=p.insHist||[];
+    S.equiv=p.equiv||{...DEFAULT_EQUIV};
+    S.levels=p.levels||{...DEFAULT_LEVELS};
+    S.insLevels=p.insLevels||{...DEFAULT_INS_LEVELS};
+    S.targets=p.targets||{};
+  } else { S.prices={...DEFAULT_PRICES}; }
+  INV.forEach(p=>{if(S.inv[p.id]===undefined)S.inv[p.id]=0});
+  INSUMOS.forEach(p=>{if(S.insumos[p.id]===undefined)S.insumos[p.id]=0});
+  if(!Object.keys(S.prices).length)S.prices={...DEFAULT_PRICES};
+}
+
+async function saveS(){
+  localStorage.setItem('fondo_v3',JSON.stringify({
+    inv:S.inv,hist:S.hist,prices:S.prices,
+    insumos:S.insumos,insHist:S.insHist,
+    equiv:S.equiv,levels:S.levels,insLevels:S.insLevels,
+    targets:S.targets
+  }));
+}
+
+async function saveInvToDB(prodId){
+  const sb = getSB(); if(!sb) return;
+  try{
+    await sb.from('fondo_inventory').upsert({id:prodId, stock:S.inv[prodId]});
+  }catch(e){ console.warn('SB inv error:', e.message); }
+}
+
+async function saveHistToDB(entry){
+  const sb = getSB(); if(!sb) return;
+  try{
+    await sb.from('fondo_history').insert({
+      tipo: entry.tipo, producto: entry.nombre,
+      usuario: entry.user, peso_total: entry.total, pesos: entry.weights
+    });
+  }catch(e){ console.warn('SB hist error:', e.message); }
+}
+
+async function savePricesToDB(){
+  const sb = getSB(); if(!sb) return;
+  try{
+    const rows = Object.entries(S.prices).map(([k,v])=>({ingrediente:k,costo_kg:v}));
+    await sb.from('fondo_prices').upsert(rows);
+  }catch(e){ console.warn('SB prices error:', e.message); }
+}
+
+// ================================================================
+// TABS
+// ================================================================
+function openTab(t){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('on'));
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('on'));
+  document.getElementById('page-'+t).classList.add('on');
+  const tabs=['dash','esc','inv','insumos','compras','hist','config'];
+  const idx=tabs.indexOf(t);
+  document.querySelectorAll('.tab')[idx]?.classList.add('on');
+  if(t==='inv')renderInv();
+  if(t==='insumos')renderInsumos();
+  if(t==='compras')renderCompras();
+  if(t==='hist')renderHist();
+  if(t==='dash')renderDash();
+  if(t==='config')renderConfigEditors();
+}
+
+// ================================================================
+// SCALER
+// ================================================================
+function getCostPerG(key){return (S.prices[key]||0)/1000}
+function calcRecipeCost(recKey,factor){
+  const rec=R[recKey];
+  return rec.ing.reduce((sum,i)=>{
+    const cpg=getCostPerG(i.k);
+    return sum+i.a*factor*cpg;
+  },0);
+}
+
+function loadRecipe(){
+  const k=document.getElementById('recSel').value;
+  if(!k){document.getElementById('scalerBody').style.display='none';return}
+  S.currentRec=k;S.scaleFactor=1;
+  document.getElementById('scalerBody').style.display='block';
+  // Limpiar campo de kg
+  const tkgEl=document.getElementById('targetKg');
+  if(tkgEl) tkgEl.value='';
+  const infoEl=document.getElementById('targetKgInfo');
+  if(infoEl) infoEl.style.display='none';
+  renderIngTable();updateOutputs();
+}
+
+function renderIngTable(){
+  const rec=R[S.currentRec];const f=S.scaleFactor;
+  const tb=document.getElementById('ingBody');tb.innerHTML='';
+  rec.ing.forEach((ing,i)=>{
+    const sc=Math.round(ing.a*f*10)/10;
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td style="color:var(--crema);font-size:12px">${ing.n}</td>
+      <td style="font-size:11px;color:var(--gris)">${ing.a}${ing.u}</td>
+      <td><input type="number" step="0.1" value="${Math.round(ing.a*f*10)/10}" onchange="rescale(${i},this.value)" onfocus="this.select()"></td>
+      <td><span class="scaled" id="sc${i}">${sc}${ing.u}</span></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function rescale(idx,val){
+  const rec=R[S.currentRec];
+  const orig=rec.ing[idx].a;
+  const nf=parseFloat(val)/orig;
+  if(isNaN(nf)||nf<=0)return;
+  S.scaleFactor=nf;
+  rec.ing.forEach((ing,i)=>{
+    if(i!==idx){
+      const sc=Math.round(ing.a*nf*10)/10;
+      document.getElementById('sc'+i).textContent=sc+ing.u;
+      const inputs=document.querySelectorAll('#ingBody input');
+      if(inputs[i])inputs[i].value=sc;
+    }
+    document.getElementById('sc'+idx).textContent=Math.round(parseFloat(val)*10)/10+ing.u;
+  });
+  updateOutputs();
+}
+
+function updateOutputs(){
+  const rec=R[S.currentRec];const f=S.scaleFactor;
+  const totalIn=rec.ing.reduce((s,i)=>(i.u==='g'||i.u==='ml')?s+i.a*f:s,0);
+  const rend=Math.round(totalIn*rec.rendPct);
+  const bags=rec.cat==='proteina'?Math.floor(rend/110):'—';
+  const cost=calcRecipeCost(S.currentRec,f);
+  document.getElementById('outRend').textContent=rend>=1000?(rend/1000).toFixed(2)+'kg':rend+'g';
+  document.getElementById('outBag').textContent=bags;
+  document.getElementById('outCost').textContent='$'+Math.round(cost);
+  document.getElementById('outTime').textContent=rec.tiempo;
+}
+
+// ================================================================
+// GUIDE
+// ================================================================
+function startGuide(){
+  if(!S.currentRec)return;
+  stopTimer();
+  S.guide.recKey=S.currentRec;
+  S.guide.step=0;
+  S.guide.scaledIng=R[S.currentRec].ing.map(i=>({...i,scaled:Math.round(i.a*S.scaleFactor*10)/10}));
+  document.getElementById('gTitle').textContent=R[S.currentRec].name;
+  document.getElementById('guideOverlay').classList.add('on');
+  renderStep();
+}
+
+function closeGuide(){
+  document.getElementById('guideOverlay').classList.remove('on');
+  stopTimer();
+}
+
+function renderStep(){
+  const rec=R[S.guide.recKey];
+  const steps=rec.steps;const si=S.guide.step;const step=steps[si];
+  const total=steps.length;
+  document.getElementById('gProgress').style.width=((si+1)/total*100)+'%';
+  document.getElementById('gCounter').textContent=`Paso ${si+1} de ${total}`;
+  document.getElementById('gPrevBtn').style.opacity=si===0?'0.3':'1';
+  document.getElementById('gPrevBtn').disabled=si===0;
+  const isLast=si===total-1;
+  document.getElementById('gNextBtn').textContent=isLast?'✓ Terminado':'Siguiente →';
+  document.getElementById('gNextBtn').className='btn '+(isLast?'btn-verde':'btn-rojo');
+
+  // Replace tokens
+  let txt=step.x;
+  S.guide.scaledIng.forEach(ing=>{
+    txt=txt.split('{'+ing.k+'}').join('<span class="sq">'+ing.scaled+ing.u+'</span>');
+  });
+
+  // Build ingredient reference
+  const ingHtml=S.guide.scaledIng.map(i=>`<span class="ingr-tag">${i.n}: <b>${i.scaled}${i.u}</b></span>`).join('');
+
+  let timerHtml='';
+  if(step.timer){
+    timerHtml=`<div class="timer-card">
+      <div class="timer-lbl">Cronómetro — ${step.timer<60?step.timer+' min':Math.floor(step.timer/60)+'h '+(step.timer%60>0?step.timer%60+'min':'')}</div>
+      <div class="timer-display" id="timerDisp">${fmtTime(step.timer*60)}</div>
+      <div class="timer-btns">
+        <button class="t-btn t-btn-start" id="tBtnStart" onclick="startTimer(${step.timer*60})">▶ Iniciar</button>
+        <button class="t-btn t-btn-pause" id="tBtnPause" onclick="pauseTimer()" style="display:none">⏸ Pausar</button>
+        <button class="t-btn t-btn-reset" onclick="resetTimer(${step.timer*60})">↺ Reset</button>
+      </div>
+    </div>`;
+  }
+
+  let ckHtml='';
+  if(step.ck){
+    ckHtml=`<div class="checkpoint-card"><strong>✅ Checkpoint — ¿Cómo debe quedar?</strong>${step.ck}</div>`;
+  }
+  let tipHtml='';
+  if(step.tip){
+    tipHtml=`<div class="tip-card"><strong>💡 Tip del Chef</strong>${step.tip}</div>`;
+  }
+
+  document.getElementById('gBody').innerHTML=`
+    <div class="ingr-ref"><div class="ingr-ref-title">Ingredientes escalados (referencia)</div><div class="ingr-ref-list">${ingHtml}</div></div>
+    <div class="step-num">Paso ${si+1}</div>
+    <div class="step-title">${step.t}</div>
+    <div class="step-text">${txt}</div>
+    ${timerHtml}${ckHtml}${tipHtml}
+  `;
+  stopTimer();
+  S.guide.step=si;
+}
+
+function goNext(){
+  const steps=R[S.guide.recKey].steps;
+  if(S.guide.step<steps.length-1){
+    S.guide.step++;renderStep();
+    document.getElementById('gBody').scrollTop=0;
+  } else {
+    closeGuide();
+    openRegModal();
+  }
+}
+
+function goPrev(){
+  if(S.guide.step>0){
+    S.guide.step--;renderStep();
+    document.getElementById('gBody').scrollTop=0;
+  }
+}
+
+// ================================================================
+// TIMER
+// ================================================================
+function fmtTime(secs){
+  const h=Math.floor(secs/3600);
+  const m=Math.floor((secs%3600)/60);
+  const s=secs%60;
+  if(h>0)return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+
+function startTimer(totalSecs){
+  stopTimer();
+  if(S.timer.remaining===0||S.timer.remaining===totalSecs)S.timer.remaining=totalSecs;
+  S.timer.totalSecs=totalSecs;
+  S.timer.running=true;
+  document.getElementById('tBtnStart').style.display='none';
+  document.getElementById('tBtnPause').style.display='inline-block';
+  const disp=document.getElementById('timerDisp');
+  disp.classList.add('running');disp.classList.remove('done');
+  S.timer.interval=setInterval(()=>{
+    S.timer.remaining--;
+    if(document.getElementById('timerDisp'))
+      document.getElementById('timerDisp').textContent=fmtTime(S.timer.remaining);
+    if(S.timer.remaining<=0){
+      stopTimer();
+      const d=document.getElementById('timerDisp');
+      if(d){d.textContent='00:00';d.classList.remove('running');d.classList.add('done')}
+      beep();
+      showToast('⏰ ¡Tiempo! Revisa el resultado.');
+    }
+  },1000);
+}
+
+function pauseTimer(){
+  clearInterval(S.timer.interval);S.timer.running=false;
+  document.getElementById('tBtnStart').style.display='inline-block';
+  document.getElementById('tBtnPause').style.display='none';
+}
+
+function resetTimer(totalSecs){
+  stopTimer();S.timer.remaining=totalSecs;
+  const d=document.getElementById('timerDisp');
+  if(d){d.textContent=fmtTime(totalSecs);d.classList.remove('running','done')}
+  document.getElementById('tBtnStart').style.display='inline-block';
+  document.getElementById('tBtnPause').style.display='none';
+}
+
+function stopTimer(){
+  clearInterval(S.timer.interval);S.timer.running=false;S.timer.remaining=0;
+}
+
+function beep(){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    [0,0.3,0.6].forEach(t=>{
+      const o=ctx.createOscillator();const g=ctx.createGain();
+      o.connect(g);g.connect(ctx.destination);
+      o.frequency.value=880;o.type='sine';
+      g.gain.setValueAtTime(0.3,ctx.currentTime+t);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+t+0.3);
+      o.start(ctx.currentTime+t);o.stop(ctx.currentTime+t+0.3);
+    });
+    if(navigator.vibrate)navigator.vibrate([200,100,200,100,400]);
+  }catch(e){}
+}
+
+// ================================================================
+// INVENTORY
+// ================================================================
+function renderInv(){
+  const list=document.getElementById('invList');list.innerHTML='';
+  const f=S.invFilter;
+  const prods=f==='all'?INV:INV.filter(p=>p.cat===f);
+  if(!prods.length){list.innerHTML='<div class="empty"><div class="empty-icon">📦</div><div class="empty-txt">Sin productos.</div></div>';return}
+  prods.forEach(prod=>{
+    const stk=S.inv[prod.id]||0;
+    const lv=getLevel(stk,S.levels);
+    const pct=Math.min(stk/(S.levels.ok)*100,100);
+    const kg=(stk/1000).toFixed(2);
+    const equiv=S.equiv[prod.id]||0;
+    const bags=equiv>0?Math.floor(stk/equiv):0;
+    const baguettes=PROD_BAGUETTES[prod.id]||[];
+    let barC='bar-ok';
+    if(lv.lbl==='CRÍTICO')barC='bar-crit';
+    else if(lv.lbl==='BAJO')barC='bar-warn';
+    else if(lv.lbl==='INTERMEDIO')barC='bar-warn';
+    const d=document.createElement('div');
+    d.className=`inv-card fade`;
+    d.style.cssText=`background:${lv.bg};border-color:${lv.color}33;cursor:pointer`;
+    d.onclick=()=>openDetalle(prod.id);
+    d.innerHTML=`<div class="inv-top">
+      <div><div class="inv-name">${prod.n}</div><div class="inv-meta">${prod.cat.toUpperCase()}</div></div>
+      <div class="inv-right">
+        <div class="inv-num">${kg}kg</div>
+        ${equiv>0?`<div class="inv-sub">${bags} baguettes</div>`:''}
+        <span class="tag" style="background:${lv.bg};color:${lv.color};border:1px solid ${lv.color}44">${lv.lbl}</span>
+      </div>
+    </div>
+    <div class="bar"><div class="bar-fill ${barC}" style="width:${pct}%"></div></div>
+    <div class="btn-row" onclick="event.stopPropagation()">
+      <button class="btn btn-verde btn-sm" onclick="openEntrada('${prod.id}')">+ Entrada</button>
+      <button class="btn btn-rojo btn-sm" onclick="openSalida('${prod.id}')">− Salida</button>
+    </div>`;
+    list.appendChild(d);
+  });
+  updateAlertPill();
+}
+
+function setInvFilter(f,el){
+  S.invFilter=f;
+  document.querySelectorAll('#invPills .pill').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');renderInv();
+}
+
+function updateAlertPill(){
+  const nInv=INV.filter(p=>getLevel(S.inv[p.id]||0,S.levels).lbl==='CRÍTICO'||getLevel(S.inv[p.id]||0,S.levels).lbl==='BAJO').length;
+  const nIns=INSUMOS.filter(p=>getLevel(S.insumos[p.id]||0,S.insLevels).lbl==='CRÍTICO').length;
+  const n=nInv+nIns;
+  const pill=document.getElementById('alertPill');
+  if(n>0){pill.textContent='⚠ '+n+' Alerta'+(n>1?'s':'');pill.classList.add('on')}
+  else pill.classList.remove('on');
+}
+
+function toggleAlerts(btn){
+  const hidden=document.getElementById('alertsHidden');
+  if(!hidden)return;
+  const isHidden=hidden.style.display==='none';
+  hidden.style.display=isHidden?'block':'none';
+  btn.textContent=isHidden?'Ver menos ▲':`Ver todas (${hidden.children.length} más) ▼`;
+}
+
+// ================================================================
+// DASHBOARD
+// ================================================================
+function renderDash(){
+  const total=INV.reduce((s,p)=>s+(S.inv[p.id]||0),0);
+  const alerts=INV.filter(p=>getLevel(S.inv[p.id]||0,S.levels).lbl!=='OK');
+  const insAlerts=INSUMOS.filter(p=>getLevel(S.insumos[p.id]||0,S.insLevels).lbl==='CRÍTICO');
+  const crits=alerts.filter(p=>getLevel(S.inv[p.id]||0,S.levels).lbl==='CRÍTICO');
+
+  document.getElementById('dashStats').innerHTML=`
+    <div class="dash-stat"><div class="dash-val">${(total/1000).toFixed(1)}<span style="font-size:14px">kg</span></div><div class="dash-lbl">Stock Total</div></div>
+    <div class="dash-stat"><div class="dash-val" style="color:${crits.length?'#ff6666':'var(--dorado)'}">${crits.length||'✓'}</div><div class="dash-lbl">Críticos</div></div>
+    <div class="dash-stat"><div class="dash-val">${S.hist.length}</div><div class="dash-lbl">Movimientos</div></div>
+    <div class="dash-stat"><div class="dash-val">${alerts.length+insAlerts.length||'✓'}</div><div class="dash-lbl">Alertas</div></div>
+  `;
+
+  if(alerts.length||insAlerts.length){
+    const MAX_VISIBLE=3;
+    const allAlerts=[
+      ...alerts.map(p=>{
+        const stk=S.inv[p.id]||0;
+        const lv=getLevel(stk,S.levels);
+        const equiv=S.equiv[p.id]||0;
+        const bags=equiv>0?Math.floor(stk/equiv):0;
+        return {n:p.n,kg:(stk/1000).toFixed(2),lv,bags,equiv,type:'producto'};
+      }),
+      ...insAlerts.map(p=>{
+        const stk=S.insumos[p.id]||0;
+        const lv=getLevel(stk,S.insLevels);
+        return {n:p.n,kg:(stk/1000).toFixed(2),lv,bags:0,equiv:0,type:'insumo'};
+      })
+    ];
+    const renderItem=a=>`<div class="alert-list-item" style="cursor:pointer" onclick="openTab('${a.type==='insumo'?'insumos':'inv'}')">
+      <div>
+        <div class="alert-prod" style="color:${a.lv.color}">${a.n}</div>
+        <div class="alert-stock">${a.kg}kg${a.equiv>0?` · ${a.bags} baguettes posibles`:''} · ${a.type==='insumo'?'Insumo':'Producto Final'}</div>
+      </div>
+      <span class="tag" style="background:${a.lv.bg};color:${a.lv.color};border:1px solid ${a.lv.color}44">${a.lv.lbl}</span>
+    </div>`;
+    const visible=allAlerts.slice(0,MAX_VISIBLE);
+    const hidden=allAlerts.slice(MAX_VISIBLE);
+    let html=visible.map(renderItem).join('');
+    if(hidden.length){
+      html+=`<div id="alertsHidden" style="display:none">${hidden.map(renderItem).join('')}</div>
+      <button class="btn btn-outline btn-sm" style="margin-top:10px;width:100%" onclick="toggleAlerts(this)">
+        Ver todas (${hidden.length} más) ▼
+      </button>`;
+    }
+    document.getElementById('dashAlerts').innerHTML=html;
+  } else {
+    document.getElementById('dashAlerts').innerHTML='<div class="empty" style="padding:20px"><div class="empty-icon">✅</div><div class="empty-txt">Todo en orden.</div></div>';
+  }
+
+  const suggests=INV.filter(p=>(S.inv[p.id]||0)<p.min*1.5);
+  if(suggests.length){
+    document.getElementById('dashSugest').innerHTML=suggests.slice(0,4).map(p=>`
+      <div class="alert-list-item">
+        <div><div class="alert-prod">${p.n}</div><div class="alert-stock">Stock actual: ${((S.inv[p.id]||0)/1000).toFixed(2)}kg</div></div>
+        <button class="btn btn-outline btn-sm" onclick="openTab('esc')">Hacer →</button>
+      </div>`).join('');
+  } else {
+    document.getElementById('dashSugest').innerHTML='<div class="empty" style="padding:20px"><div class="empty-txt">Sin sugerencias.</div></div>';
+  }
+
+  const recent=S.hist.slice(0,5);
+  if(recent.length){
+    document.getElementById('dashHist').innerHTML=recent.map(h=>`
+      <div class="hist-item">
+        <div class="h-icon ${h.tipo==='entrada'?'h-in':'h-out'}">${h.tipo==='entrada'?'↑':'↓'}</div>
+        <div class="h-body"><div class="h-prod">${h.nombre}</div><div class="h-det">${h.tipo==='entrada'?'+':'-'}${(h.total/1000).toFixed(2)}kg · ${h.user}</div></div>
+        <div class="h-time">${h.time}</div>
+      </div>`).join('');
+  } else {
+    document.getElementById('dashHist').innerHTML='<div class="empty" style="padding:20px"><div class="empty-txt">Sin movimientos aún.</div></div>';
+  }
+}
+
+// ================================================================
+// HISTORIAL
+// ================================================================
+function renderHist(){
+  const list=document.getElementById('histList');
+  if(!S.hist.length){list.innerHTML='<div class="empty"><div class="empty-icon">📦</div><div class="empty-txt">Sin movimientos aún.</div></div>';return}
+  list.innerHTML=S.hist.map((h,i)=>`
+    <div class="hist-item" id="hist-item-${i}">
+      <div class="h-icon ${h.tipo==='entrada'?'h-in':'h-out'}">${h.tipo==='entrada'?'↑':'↓'}</div>
+      <div class="h-body">
+        <div class="h-prod">${h.nombre}</div>
+        <div class="h-det">${h.tipo==='entrada'?'+':'-'}${(h.total/1000).toFixed(2)}kg · ${h.weights.map(w=>w+'g').join(', ')} · ${h.user}</div>
+        <div class="h-time">${h.time}</div>
+      </div>
+      <button onclick="confirmDeleteHist(${i})" style="background:none;border:1px solid rgba(255,100,100,.3);color:#ff8888;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer;flex-shrink:0" title="Borrar y revertir">✕</button>
+    </div>`).join('');
+}
+
+async function confirmDeleteHist(idx){
+  const h=S.hist[idx];
+  if(!h)return;
+  const conf=confirm(`¿Borrar este movimiento y revertir el stock?\n\n${h.tipo==='entrada'?'+':'-'}${h.total}g de ${h.nombre}\n${h.user} · ${h.time}\n\nEsto no se puede deshacer.`);
+  if(!conf)return;
+  // Revertir en inventario producto final
+  const prod=INV.find(p=>p.n===h.nombre);
+  if(prod){
+    if(h.tipo==='entrada') S.inv[prod.id]=Math.max(0,(S.inv[prod.id]||0)-h.total);
+    else S.inv[prod.id]=(S.inv[prod.id]||0)+h.total;
+    await saveInvToDB(prod.id);
+  }
+  // Revertir en insumos
+  const ins=INSUMOS.find(p=>p.n===h.nombre);
+  if(ins){
+    if(h.tipo==='entrada') S.insumos[ins.id]=Math.max(0,(S.insumos[ins.id]||0)-h.total);
+    else S.insumos[ins.id]=(S.insumos[ins.id]||0)+h.total;
+    await saveInsumosToDB(ins.id);
+  }
+  // Borrar del historial
+  S.hist.splice(idx,1);
+  await saveS();
+  renderHist();renderInv();renderDash();updateAlertPill();
+  showToast('✓ Movimiento borrado y stock revertido');
+}
+
+function addHist(tipo,nombre,weights,user){
+  const now=new Date();
+  S.hist.unshift({tipo,nombre,weights,user,
+    time:now.toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),
+    total:weights.reduce((a,b)=>a+b,0)
+  });
+  if(S.hist.length>200)S.hist.pop();
+}
+
+// ================================================================
+// MODALS
+// ================================================================
+function openM(id){document.getElementById(id).classList.add('on')}
+function closeM(id){document.getElementById(id).classList.remove('on')}
+
+function selUser(el,type){
+  const row=el.closest('.user-row');
+  row.querySelectorAll('.chip').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');S.users[type]=el.textContent;
+}
+
+function buildBags(containerId,numId){
+  const n=parseInt(document.getElementById(numId).value)||1;
+  const c=document.getElementById(containerId);c.innerHTML='';
+  for(let i=0;i<n;i++){
+    c.innerHTML+=`<div class="bag-row"><span class="bag-lbl">Bolsa ${i+1}:</span><input type="number" placeholder="gramos" class="bw" value="1000"><span class="bag-unit">g</span></div>`;
+  }
+}
+
+function openEntrada(prodId){
+  const sel=document.getElementById('mEntProd');sel.innerHTML='';
+  INV.forEach(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=p.n;if(p.id===prodId)o.selected=true;sel.appendChild(o)});
+  document.getElementById('mEntNum').value=1;buildBags('mEntBags','mEntNum');
+  openM('mEntrada');
+}
+
+function openSalida(prodId){
+  S._salidaId=prodId;
+  const p=INV.find(x=>x.id===prodId);
+  document.getElementById('mSalProd').textContent=p.n;
+  document.getElementById('mSalBolsas').value=1;
+  document.getElementById('mSalPeso').value=p.bolsa;
+  openM('mSalida');
+}
+
+function openRegModal(){
+  document.getElementById('mRegName').textContent='Receta: '+R[S.guide.recKey].name;
+  document.getElementById('mRegNum').value=1;buildBags('mRegBags','mRegNum');
+  openM('mReg');
+}
+
+async function confirmEntrada(){
+  const prodId=document.getElementById('mEntProd').value;
+  const weights=[...document.querySelectorAll('#mEntBags .bw')].map(i=>parseFloat(i.value)||0);
+  const total=weights.reduce((a,b)=>a+b,0);
+  if(!prodId||total===0){showToast('Completa todos los campos');return}
+  S.inv[prodId]=(S.inv[prodId]||0)+total;
+  const p=INV.find(x=>x.id===prodId);
+  addHist('entrada',p.n,weights,S.users.entrada);
+  saveS();
+  await saveInvToDB(prodId);
+  await saveHistToDB({tipo:'entrada',nombre:p.n,weights,user:S.users.entrada,total});
+  closeM('mEntrada');renderInv();
+  showToast('✓ +'+total+'g de '+p.n+' — guardado en nube');
+}
+
+async function confirmSalida(){
+  const peso=parseFloat(document.getElementById('mSalPeso').value)||0;
+  if(peso===0){showToast('Ingresa el peso');return}
+  const cur=S.inv[S._salidaId]||0;
+  if(peso>cur){showToast('No hay suficiente stock');return}
+  S.inv[S._salidaId]=cur-peso;
+  const p=INV.find(x=>x.id===S._salidaId);
+  addHist('salida',p.n,[peso],S.users.salida);
+  saveS();
+  await saveInvToDB(S._salidaId);
+  await saveHistToDB({tipo:'salida',nombre:p.n,weights:[peso],user:S.users.salida,total:peso});
+  closeM('mSalida');renderInv();
+  showToast('✓ −'+peso+'g de '+p.n+' — guardado en nube');
+}
+
+async function confirmReg(){
+  const weights=[...document.querySelectorAll('#mRegBags .bw')].map(i=>parseFloat(i.value)||0);
+  const total=weights.reduce((a,b)=>a+b,0);
+  if(total===0){showToast('Ingresa los pesos');return}
+  const rk=S.guide.recKey;
+  const invId=R[rk].invId;
+  if(invId&&S.inv[invId]!==undefined)S.inv[invId]=(S.inv[invId]||0)+total;
+  addHist('entrada',R[rk].name,weights,S.users.reg);
+  saveS();
+  if(invId) await saveInvToDB(invId);
+  await saveHistToDB({tipo:'entrada',nombre:R[rk].name,weights,user:S.users.reg,total});
+  closeM('mReg');
+  showToast('✓ '+total+'g registrado en nube');
+  renderDash();
+}
+
+// ================================================================
+// EXCEL EXPORT
+// ================================================================
+function exportXLSX(){
+  if(typeof XLSX==='undefined'){showToast('Cargando librería...');return}
+  const wb=XLSX.utils.book_new();
+  const gold=[255,225,150];const darkRed=[111,6,6];const cream=[230,225,206];
+
+  // INVENTARIO
+  const invData=[['Producto','Categoría','Stock (g)','Stock (kg)','Bolsas','Mínimo (g)','Estado']];
+  INV.forEach(p=>{
+    const stk=S.inv[p.id]||0;
+    const estado=stk<=p.min*0.33?'CRÍTICO':stk<=p.min?'BAJO':'OK';
+    invData.push([p.n,p.cat,stk,(stk/1000).toFixed(2),(stk/p.bolsa).toFixed(1),p.min,estado]);
+  });
+  const wsInv=XLSX.utils.aoa_to_sheet(invData);
+  wsInv['!cols']=[{wch:25},{wch:12},{wch:10},{wch:10},{wch:8},{wch:12},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,wsInv,'INVENTARIO');
+
+  // HISTORIAL
+  const histData=[['Fecha','Usuario','Producto','Tipo','Peso Total (g)','Bolsas (pesos)']];
+  S.hist.forEach(h=>{histData.push([h.time,h.user,h.nombre,h.tipo.toUpperCase(),h.total,h.weights.join(', ')])});
+  const wsHist=XLSX.utils.aoa_to_sheet(histData);
+  wsHist['!cols']=[{wch:16},{wch:10},{wch:25},{wch:10},{wch:14},{wch:30}];
+  XLSX.utils.book_append_sheet(wb,wsHist,'HISTORIAL');
+
+  // INSUMOS
+  const insData=[['Ingrediente','Costo x kg','Categoría']];
+  Object.entries(S.prices).forEach(([k,v])=>insData.push([k,v,'']));
+  const wsIns=XLSX.utils.aoa_to_sheet(insData);
+  wsIns['!cols']=[{wch:25},{wch:15},{wch:15}];
+  XLSX.utils.book_append_sheet(wb,wsIns,'INSUMOS');
+
+  // COSTEO TOTAL
+  const costData=[['Receta','Costo Ingredientes','+ Empaque est.','Precio Venta','Utilidad','Margen %']];
+  const empaque=41;const precio=250;
+  Object.entries(R).forEach(([k,rec])=>{
+    const c=calcRecipeCost(k,1);
+    const util=precio-c-empaque;
+    const margen=(util/precio*100).toFixed(1);
+    costData.push([rec.name,c.toFixed(2),empaque,precio,util.toFixed(2),margen+'%']);
+  });
+  const wsCost=XLSX.utils.aoa_to_sheet(costData);
+  wsCost['!cols']=[{wch:30},{wch:20},{wch:15},{wch:15},{wch:12},{wch:10}];
+  XLSX.utils.book_append_sheet(wb,wsCost,'COSTEO TOTAL');
+
+  const fn='FONDO_Sistema_'+new Date().toISOString().slice(0,10)+'.xlsx';
+  XLSX.writeFile(wb,fn);
+  showToast('✓ Exportado: '+fn);
+}
+
+// ================================================================
+// IMPORT PRICES FROM EXCEL
+// ================================================================
+function importPrices(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets['INSUMOS'];
+      if(!ws){showToast('No se encontró hoja INSUMOS');return}
+      const data=XLSX.utils.sheet_to_json(ws,{header:1});
+      let updated=0;
+      data.slice(1).forEach(row=>{
+        if(row[0]&&row[1]&&S.prices.hasOwnProperty(row[0])){
+          S.prices[row[0]]=parseFloat(row[1])||S.prices[row[0]];
+          updated++;
+        }
+      });
+      saveS();savePricesToDB();showToast('✓ '+updated+' precios actualizados desde Excel');
+    }catch(err){showToast('Error al leer el archivo Excel')}
+  };
+  reader.readAsArrayBuffer(file);
+  input.value='';
+}
+
+// ================================================================
+// JSON BACKUP
+// ================================================================
+function exportJSON(){
+  const d={inv:S.inv,hist:S.hist,prices:S.prices,exportDate:new Date().toISOString()};
+  const blob=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='fondo_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  showToast('✓ Backup exportado');
+}
+
+function importJSON(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const d=JSON.parse(e.target.result);
+      if(d.inv)S.inv={...S.inv,...d.inv};
+      if(d.hist)S.hist=d.hist;
+      if(d.prices)S.prices={...S.prices,...d.prices};
+      saveS();renderDash();updateAlertPill();
+      showToast('✓ Datos importados correctamente');
+    }catch(err){showToast('Archivo JSON inválido')}
+  };
+  reader.readAsText(file);input.value='';
+}
+
+function clearAll(){
+  if(!confirm('¿Seguro? Se borrará todo el inventario e historial.'))return;
+  S.inv={};S.hist={};
+  INV.forEach(p=>S.inv[p.id]=0);
+  saveS();renderDash();renderInv();renderHist();updateAlertPill();
+  showToast('Datos borrados');
+}
+
+// ================================================================
+// TOAST
+// ================================================================
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');
+  setTimeout(()=>t.classList.remove('on'),2600);
+}
+
+// ================================================================
+// NIVEL DE ALERTA
+// ================================================================
+function getLevel(stock, levels){
+  if(stock<=levels.critico) return {lbl:'CRÍTICO',color:'#ff6666',bg:'rgba(220,30,30,.15)'};
+  if(stock<=levels.bajo) return {lbl:'BAJO',color:'#ff9944',bg:'rgba(255,153,68,.12)'};
+  if(stock<=levels.medio) return {lbl:'INTERMEDIO',color:'#ffcc44',bg:'rgba(255,204,68,.1)'};
+  return {lbl:'OK',color:'#5dba8a',bg:'rgba(45,106,79,.12)'};
+}
+
+// ================================================================
+// LOGIN
+// ================================================================
+function loginAs(name){
+  S.activeUser = name;
+  // Setear como usuario por defecto en todos los contextos
+  S.users = {entrada:name, salida:name, reg:name, insEntrada:name};
+  // Actualizar chips en todos los modales
+  document.querySelectorAll('.chip').forEach(c=>{
+    c.classList.toggle('on', c.textContent===name);
+  });
+  // Mostrar nombre en header
+  const dot = document.getElementById('sbDot');
+  if(dot) dot.textContent = '👤 '+name;
+  // Ocultar login
+  document.getElementById('loginScreen').style.display='none';
+  // Inicializar
+  loadS(); renderDash(); updateAlertPill(); initSB();
+  setInterval(initSB, 15000);
+}
+
+// ================================================================
+// ESCALAR POR KG DE PRODUCCIÓN
+// ================================================================
+function scaleByKg(){
+  const kg = parseFloat(document.getElementById('targetKg').value)||0;
+  if(!S.currentRec||kg<=0){
+    document.getElementById('targetKgInfo').style.display='none';
+    return;
+  }
+  const rec = R[S.currentRec];
+  // Calcular el rendimiento base (1x)
+  const totalInput = rec.ing.reduce((s,i)=>(i.u==='g'||i.u==='ml')?s+i.a:s, 0);
+  const rendBase = totalInput * (rec.rendPct||1);
+  // Factor necesario para producir kg deseados
+  const factor = (kg * 1000) / rendBase;
+  S.scaleFactor = factor;
+  // Actualizar tabla
+  const inputs = document.querySelectorAll('#ingBody input');
+  rec.ing.forEach((ing,i)=>{
+    const sc = Math.round(ing.a * factor * 10) / 10;
+    if(inputs[i]) inputs[i].value = sc;
+    const scEl = document.getElementById('sc'+i);
+    if(scEl) scEl.textContent = sc + ing.u;
+  });
+  updateOutputs();
+  const info = document.getElementById('targetKgInfo');
+  info.style.display = 'block';
+  info.textContent = `Factor: ${factor.toFixed(2)}x · Rendimiento estimado: ${Math.round(rendBase*factor/1000*100)/100}kg`;
+}
+
+// ================================================================
+// INVENTARIO INSUMOS — con clic correcto
+// ================================================================
+function setInsFilter(f,el){
+  S.insFilter=f;
+  document.querySelectorAll('#insPills .pill').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');renderInsumos();
+}
+
+function renderInsumos(){
+  const list=document.getElementById('insList'); if(!list)return;
+  const fil=INSUMOS.filter(p=>S.insFilter==='all'||p.cat===S.insFilter);
+  if(!fil.length){list.innerHTML='<div class="empty"><div class="empty-icon">📦</div><div class="empty-txt">Sin insumos en esta categoría.</div></div>';return;}
+  let html='';
+  const cats=[...new Set(fil.map(p=>p.cat))];
+  cats.forEach(cat=>{
+    html+=`<div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gris);margin:16px 0 8px">${cat}</div>`;
+    fil.filter(p=>p.cat===cat).forEach(p=>{
+      const stock=S.insumos[p.id]||0;
+      const lv=getLevel(stock,S.insLevels);
+      const kg=(stock/1000).toFixed(2);
+      html+=`<div class="inv-card" style="background:${lv.bg};border-color:${lv.color}33;margin-bottom:8px">
+        <!-- Zona clickeable para historial -->
+        <div style="cursor:pointer" onclick="openInsumoDetalle('${p.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px">
+            <div>
+              <div class="inv-name">${p.n}</div>
+              <div style="font-size:10px;color:var(--gris);margin-top:2px">$${p.precio.toFixed(0)}/kg · ${p.cat}</div>
+            </div>
+            <div style="text-align:right">
+              <div class="inv-kg">${kg}<span class="inv-u">kg</span></div>
+              <span class="inv-tag" style="background:${lv.bg};color:${lv.color}">${lv.lbl}</span>
+            </div>
+          </div>
+        </div>
+        <!-- Zona de acción — NO propaga clic al detalle -->
+        <div style="display:flex;gap:8px" onclick="event.stopPropagation()">
+          <input type="number" id="ins_${p.id}" placeholder="gramos" onclick="event.stopPropagation()" style="flex:1;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--crema);font-size:12px">
+          <button class="btn btn-verde btn-sm" onclick="event.stopPropagation();quickInsAdd('${p.id}')">+ Agregar</button>
+          <button class="btn btn-outline btn-sm" onclick="event.stopPropagation();quickInsSal('${p.id}')">− Salida</button>
+        </div>
+      </div>`;
+    });
+  });
+  list.innerHTML=html;
+}
+
+async function quickInsAdd(id){
+  const inp=document.getElementById('ins_'+id);
+  const g=parseFloat(inp?.value)||0;
+  if(g<=0){showToast('Ingresa una cantidad');return;}
+  S.insumos[id]=(S.insumos[id]||0)+g;
+  const p=INSUMOS.find(x=>x.id===id);
+  const entry={tipo:'entrada',nombre:p.n,weights:[g],user:S.users.insEntrada||'Andres',total:g,time:new Date().toLocaleString('es-MX')};
+  S.insHist.unshift(entry);
+  await saveS();
+  await saveInsumosToDB(id);
+  if(inp)inp.value='';
+  renderInsumos();updateAlertPill();
+  showToast(`✓ +${g}g de ${p.n}`);
+}
+
+async function quickInsSal(id){
+  const inp=document.getElementById('ins_'+id);
+  const g=parseFloat(inp?.value)||0;
+  if(g<=0){showToast('Ingresa una cantidad');return;}
+  const cur=S.insumos[id]||0;
+  if(g>cur){showToast('Stock insuficiente');return;}
+  S.insumos[id]=cur-g;
+  const p=INSUMOS.find(x=>x.id===id);
+  S.insHist.unshift({tipo:'salida',nombre:p.n,weights:[g],user:S.users.insEntrada||'Andres',total:g,time:new Date().toLocaleString('es-MX')});
+  await saveS();
+  await saveInsumosToDB(id);
+  if(inp)inp.value='';
+  renderInsumos();updateAlertPill();
+  showToast(`✓ −${g}g de ${p.n}`);
+}
+
+function openInsumoDetalle(id){
+  const p=INSUMOS.find(x=>x.id===id);
+  const stock=S.insumos[id]||0;
+  const lv=getLevel(stock,S.insLevels);
+  const movs=S.insHist.filter(h=>h.nombre===p.n).slice(0,20);
+  document.getElementById('mInsDetTitulo').textContent=p.n;
+  document.getElementById('mInsDetBody').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--dorado)">${(stock/1000).toFixed(2)}</div>
+        <div style="font-size:10px;color:var(--gris)">kg en stock</div>
+      </div>
+      <div style="background:${lv.bg};border-radius:8px;padding:12px;text-align:center;border:1px solid ${lv.color}44">
+        <div style="font-size:22px;font-weight:700;color:${lv.color}">${lv.lbl}</div>
+        <div style="font-size:10px;color:var(--gris)">Nivel actual</div>
+      </div>
+    </div>
+    <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gris);margin-bottom:8px">Historial</div>
+    ${movs.length?movs.map(h=>`
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="color:${h.tipo==='entrada'?'#5dba8a':'#ff9999'}">${h.tipo==='entrada'?'↑':'↓'} ${h.total}g</span>
+        <span style="color:var(--gris)">${h.user} · ${h.time}</span>
+      </div>`).join(''):'<div style="color:var(--gris);font-size:12px">Sin movimientos</div>'}
+  `;
+  openM('mInsumoDetalle');
+}
+
+async function saveInsumosToDB(id){
+  const sb=getSB();if(!sb)return;
+  try{ await sb.from('fondo_insumos').upsert({id,stock:S.insumos[id]}); }
+  catch(e){console.warn('ins DB err:',e.message);}
+}
+
+// ================================================================
+// MODAL TERMINADO RECETA — con descuento de insumos
+// ================================================================
+function openFinishModal(){
+  if(!S.currentRec){showToast('Primero selecciona una receta');return;}
+  const rec=R[S.currentRec];
+  document.getElementById('mRegName').textContent=`Receta: ${rec.name} · Factor: ${S.scaleFactor.toFixed(2)}x`;
+  buildBags('mRegBags','mRegNum');
+  // Mostrar insumos que se van a descontar
+  const ins=RECIPE_INSUMOS[S.currentRec];
+  const insDiv=document.getElementById('mRegInsumos');
+  const insList=document.getElementById('mRegInsumosList');
+  if(ins&&ins.length){
+    const totalInput=rec.ing.reduce((s,i)=>(i.u==='g'||i.u==='ml')?s+i.a*S.scaleFactor:s,0);
+    insDiv.style.display='block';
+    insList.innerHTML=ins.map(i=>{
+      const insData=INSUMOS.find(x=>x.id===i.id);
+      const g=Math.round(i.ratio*totalInput);
+      return `<div style="display:flex;justify-content:space-between;padding:3px 0;border-bottom:1px solid var(--border)22"><span>${insData?.n||i.id}</span><span style="color:#ff9999">−${g}g</span></div>`;
+    }).join('');
+  } else { insDiv.style.display='none'; }
+  openM('mReg');
+}
+
+// ================================================================
+// CONFIRM REG — ahora descuenta insumos
+// ================================================================
+async function confirmReg(){
+  const weights=[...document.querySelectorAll('#mRegBags .bw')].map(i=>parseFloat(i.value)||0);
+  const total=weights.reduce((a,b)=>a+b,0);
+  if(total===0){showToast('Ingresa los pesos');return;}
+  const rk=S.guide.recKey||S.currentRec;
+  if(!rk){showToast('Sin receta seleccionada');return;}
+  const invId=R[rk].invId;
+  if(invId&&S.inv[invId]!==undefined)S.inv[invId]=(S.inv[invId]||0)+total;
+  addHist('entrada',R[rk].name,weights,S.users.reg);
+  // Descontar insumos automáticamente
+  const ins=RECIPE_INSUMOS[rk];
+  if(ins){
+    const rec=R[rk];
+    const totalInput=rec.ing.reduce((s,i)=>(i.u==='g'||i.u==='ml')?s+i.a*S.scaleFactor:s,0);
+    ins.forEach(i=>{
+      const g=Math.round(i.ratio*totalInput);
+      S.insumos[i.id]=Math.max(0,(S.insumos[i.id]||0)-g);
+      const insData=INSUMOS.find(x=>x.id===i.id);
+      S.insHist.unshift({tipo:'salida',nombre:insData?.n||i.id,weights:[g],user:S.users.reg,total:g,ref:`Receta: ${R[rk].name}`,time:new Date().toLocaleString('es-MX')});
+    });
+  }
+  await saveS();
+  if(invId)await saveInvToDB(invId);
+  await saveHistToDB({tipo:'entrada',nombre:R[rk].name,weights,user:S.users.reg,total});
+  closeM('mReg');
+  showToast(`✓ ${total}g registrado — insumos descontados`);
+  renderDash();renderInsumos();updateAlertPill();
+}
+
+// ================================================================
+// DETALLE PRODUCTO FINAL (click en inventario)
+// ================================================================
+function openDetalle(id){
+  const p=INV.find(x=>x.id===id);
+  const stock=S.inv[id]||0;
+  const lv=getLevel(stock,S.levels);
+  const equiv=S.equiv[id]||0;
+  const bags=equiv>0?Math.floor(stock/equiv):0;
+  const baguettes=PROD_BAGUETTES[id]||[];
+  const movs=S.hist.filter(h=>h.nombre===p.n).slice(0,20);
+  document.getElementById('mDetalleTitulo').textContent=p.n;
+  document.getElementById('mDetalleBody').innerHTML=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:8px;padding:12px;text-align:center">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:28px;color:var(--dorado)">${(stock/1000).toFixed(2)}</div>
+        <div style="font-size:10px;color:var(--gris)">kg en stock</div>
+      </div>
+      <div style="background:${lv.bg};border-radius:8px;padding:12px;text-align:center;border:1px solid ${lv.color}44">
+        <div style="font-size:22px;font-weight:700;color:${lv.color}">${lv.lbl}</div>
+        <div style="font-size:10px;color:var(--gris)">Nivel</div>
+      </div>
+    </div>
+    ${baguettes.length?`<div style="background:var(--surface2);border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gris);margin-bottom:8px">Equivalencia en Baguettes</div>
+      ${baguettes.map(b=>`<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px">
+        <span>${b}</span><span style="color:var(--dorado);font-weight:700">${equiv>0?Math.floor(stock/equiv):0} baguettes</span>
+      </div>`).join('')}
+      <div style="font-size:10px;color:var(--gris);margin-top:6px">(${equiv}g por baguette)</div>
+    </div>`:''}
+    <div style="font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gris);margin-bottom:8px">Historial</div>
+    ${movs.length?movs.map(h=>`
+      <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="color:${h.tipo==='entrada'?'#5dba8a':'#ff9999'}">${h.tipo==='entrada'?'↑':'↓'} ${h.total}g</span>
+        <span style="color:var(--gris)">${h.user} · ${h.time}</span>
+      </div>`).join(''):'<div style="color:var(--gris);font-size:12px">Sin movimientos</div>'}
+  `;
+  openM('mDetalle');
+}
+
+// ================================================================
+// LISTA DE COMPRAS
+// ================================================================
+function renderCompras(){
+  const grid=document.getElementById('targetsGrid');if(!grid)return;
+  let html='';
+  INV.forEach(p=>{
+    const stock=S.inv[p.id]||0;
+    const target=S.targets[p.id]||0;
+    const pct=target>0?Math.min(100,Math.round(stock/target*100)):0;
+    const lv=getLevel(stock,S.levels);
+    const color=lv.color;
+    html+=`<div style="background:var(--surface);border:1px solid ${color}44;border-radius:10px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:17px;font-weight:600">${p.n}</div>
+        <span style="font-size:11px;font-weight:700;color:${color}">${lv.lbl}</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:4px;height:6px;margin-bottom:8px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:${color};transition:width .3s"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gris);margin-bottom:8px">
+        <span>Stock: ${(stock/1000).toFixed(2)}kg</span>
+        <span>Target: ${(target/1000).toFixed(2)}kg</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="number" id="target_${p.id}" value="${(target/1000).toFixed(2)}" step="0.5" min="0" style="flex:1;padding:7px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--crema);font-size:12px" placeholder="Target kg">
+        <button class="btn btn-sm btn-outline" onclick="saveTarget('${p.id}')">Guardar</button>
+      </div>
+    </div>`;
+  });
+  grid.innerHTML=html;
+}
+
+function saveTarget(id){
+  const val=parseFloat(document.getElementById('target_'+id)?.value)||0;
+  S.targets[id]=Math.round(val*1000);
+  saveS();renderCompras();
+  showToast('✓ Target guardado');
+}
+
+function calcShoppingList(){
+  // Calcular qué insumos se necesitan para llegar a los targets
+  const needed={};// insId -> gramos necesarios
+  INV.forEach(p=>{
+    const stock=S.inv[p.id]||0;
+    const target=S.targets[p.id]||0;
+    const falta=Math.max(0,target-stock);
+    if(falta<=0)return;
+    // Buscar la receta que produce este producto
+    const recKey=Object.keys(R).find(k=>R[k].invId===p.id);
+    if(!recKey)return;
+    const rec=R[recKey];
+    const ins=RECIPE_INSUMOS[recKey];
+    if(!ins)return;
+    // Calcular total de input para producir "falta" gramos
+    const totalInput=rec.ing.reduce((s,i)=>(i.u==='g'||i.u==='ml')?s+i.a:s,0);
+    const rendimiento=totalInput*(rec.rendPct||1);
+    const factor=falta/rendimiento;
+    ins.forEach(i=>{
+      const g=Math.round(i.ratio*totalInput*factor);
+      needed[i.id]=(needed[i.id]||0)+g;
+    });
+  });
+  // Restar lo que ya tenemos en insumos
+  const toBuy={};
+  Object.entries(needed).forEach(([id,g])=>{
+    const tengo=S.insumos[id]||0;
+    const comprar=Math.max(0,g-tengo);
+    if(comprar>0)toBuy[id]={necesario:g,tengo,comprar};
+  });
+  // Render
+  const card=document.getElementById('shoppingCard');
+  const list=document.getElementById('shoppingList');
+  if(!Object.keys(toBuy).length){
+    list.innerHTML='<div style="color:#5dba8a;text-align:center;padding:16px">✅ Tienes suficiente de todo para alcanzar tus targets</div>';
+  } else {
+    const cats=[...new Set(Object.keys(toBuy).map(id=>INSUMOS.find(x=>x.id===id)?.cat||'Otro'))];
+    let html='';
+    cats.forEach(cat=>{
+      html+=`<div style="font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--gris);margin:12px 0 6px">${cat}</div>`;
+      Object.entries(toBuy).forEach(([id,d])=>{
+        const ins=INSUMOS.find(x=>x.id===id);
+        if(!ins||ins.cat!==cat)return;
+        const kg=(d.comprar/1000).toFixed(2);
+        const costo=(d.comprar/1000*ins.precio).toFixed(2);
+        html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:12px">
+          <div>
+            <div style="font-weight:600;color:var(--crema)">${ins.n}</div>
+            <div style="color:var(--gris);font-size:10px">Tienes: ${(d.tengo/1000).toFixed(2)}kg · Necesitas: ${(d.necesario/1000).toFixed(2)}kg</div>
+          </div>
+          <div style="text-align:right">
+            <div style="color:var(--dorado);font-weight:700">${kg}kg</div>
+            <div style="color:var(--gris);font-size:10px">~$${costo}</div>
+          </div>
+        </div>`;
+      });
+    });
+    list.innerHTML=html;
+  }
+  card.style.display='block';
+}
+
+function exportShoppingList(){
+  const items=[];
+  INV.forEach(p=>{
+    const stock=S.inv[p.id]||0;
+    const target=S.targets[p.id]||0;
+    const falta=Math.max(0,target-stock);
+    if(falta>0)items.push(`${p.n}: necesitas ${(falta/1000).toFixed(2)}kg más`);
+  });
+  if(!items.length){showToast('No hay nada que comprar');return;}
+  const txt='LISTA DE COMPRAS FONDO\n'+new Date().toLocaleDateString('es-MX')+'\n\n'+items.join('\n');
+  const blob=new Blob([txt],{type:'text/plain'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='lista_compras_fondo.txt';a.click();
+  showToast('✓ Lista exportada');
+}
+
+// ================================================================
+// CONFIG EDITORS
+// ================================================================
+function renderConfigEditors(){
+  // Rellenar niveles de alerta producto final
+  const lv=S.levels;
+  document.getElementById('cfgCritico').value=lv.critico;
+  document.getElementById('cfgBajo').value=lv.bajo;
+  document.getElementById('cfgMedio').value=lv.medio;
+  document.getElementById('cfgOk').value=lv.ok;
+  // Insumos
+  const li=S.insLevels;
+  document.getElementById('cfgInsCritico').value=li.critico;
+  document.getElementById('cfgInsBajo').value=li.bajo;
+  document.getElementById('cfgInsMedio').value=li.medio;
+  document.getElementById('cfgInsOk').value=li.ok;
+  // Equivalencias
+  const ed=document.getElementById('equivEditor');
+  if(ed){
+    ed.innerHTML=INV.map(p=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--crema)">${p.n}</div>
+          <div style="font-size:10px;color:var(--gris)">${(PROD_BAGUETTES[p.id]||[]).join(', ')||'—'}</div>
+        </div>
+        <input type="number" id="equiv_${p.id}" value="${S.equiv[p.id]||0}" style="width:80px;padding:6px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--crema);font-size:12px;text-align:right" placeholder="g">
+      </div>
+    `).join('');
+  }
+}
+
+function saveAlertLevels(){
+  S.levels={
+    critico:parseFloat(document.getElementById('cfgCritico').value)||500,
+    bajo:parseFloat(document.getElementById('cfgBajo').value)||1500,
+    medio:parseFloat(document.getElementById('cfgMedio').value)||3000,
+    ok:parseFloat(document.getElementById('cfgOk').value)||5000,
+  };
+  saveS();showToast('✓ Niveles de alerta guardados');
+  renderDash();updateAlertPill();
+}
+
+function saveInsAlertLevels(){
+  S.insLevels={
+    critico:parseFloat(document.getElementById('cfgInsCritico').value)||200,
+    bajo:parseFloat(document.getElementById('cfgInsBajo').value)||500,
+    medio:parseFloat(document.getElementById('cfgInsMedio').value)||1000,
+    ok:parseFloat(document.getElementById('cfgInsOk').value)||2000,
+  };
+  saveS();showToast('✓ Niveles de insumos guardados');
+}
+
+function saveEquiv(){
+  INV.forEach(p=>{
+    const val=parseFloat(document.getElementById('equiv_'+p.id)?.value)||0;
+    S.equiv[p.id]=val;
+  });
+  saveS();showToast('✓ Equivalencias guardadas');
+}
+
+async function confirmInsEntrada(){
+  const g=parseFloat(document.getElementById('mInsEntPeso').value)||0;
+  if(g<=0){showToast('Ingresa una cantidad');return;}
+  const id=S._insEntradaId;
+  S.insumos[id]=(S.insumos[id]||0)+g;
+  const p=INSUMOS.find(x=>x.id===id);
+  S.insHist.unshift({tipo:'entrada',nombre:p.n,weights:[g],user:S.users.insEntrada||'Andres',total:g,time:new Date().toLocaleString('es-MX')});
+  await saveS();
+  await saveInsumosToDB(id);
+  closeM('mInsEntrada');
+  renderInsumos();updateAlertPill();
+  showToast(`✓ +${g}g de ${p.n}`);
+}
+
+// ================================================================
+// SUPABASE — INSUMOS DB
+// ================================================================
+async function saveSB(){
+  showToast('✓ Reconectando...');
+  await initSB();
+}
+// ================================================================
+// INIT — espera login
+// ================================================================
+// No inicializar nada aquí — loginAs() lo hace todo al elegir usuario
+
+</script>
+</body>
+</html>
