@@ -694,6 +694,9 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
   <div class="bn" data-tab="inv" onclick="openTab('inv')"><svg class="ic"><use href="#i-box"/></svg>Producto</div>
   <div class="bn" data-tab="insumos" onclick="openTab('insumos')"><svg class="ic"><use href="#i-leaf"/></svg>Insumos</div>
   <div class="bn" data-tab="ventas" onclick="openTab('ventas')"><svg class="ic"><use href="#i-receipt"/></svg>Ventas</div>
+  <div class="bn" data-tab="hist" onclick="openTab('hist')"><svg class="ic"><use href="#i-clock"/></svg>Historial</div>
+  <div class="bn" data-tab="costos" onclick="openTab('costos')"><svg class="ic"><use href="#i-coin"/></svg>Costos</div>
+  <div class="bn" data-tab="config" onclick="openTab('config')"><svg class="ic"><use href="#i-cog"/></svg>Config</div>
   <div class="bn" id="bnMore" onclick="toggleSheet(true)"><svg class="ic"><use href="#i-more"/></svg>Más</div>
 </nav>
 <div class="sheet" id="moreSheet" onclick="if(event.target===this)toggleSheet(false)">
@@ -2815,9 +2818,11 @@ function setInvFilter(f,el){
   el.classList.add('on');renderInv();
 }
 
+// Alertas de stock de insumos desactivadas: solo se avisa de productos finales. Pon true para volver a verlas.
+const ALERTAS_INSUMOS=false;
 function updateAlertPill(){
   const nInv=INV.filter(p=>prodIsActive(p.id)&&(getLevel(S.inv[p.id]||0,S.levels).lbl==='CRÍTICO'||getLevel(S.inv[p.id]||0,S.levels).lbl==='BAJO')).length;
-  const nIns=INSUMOS.filter(p=>insIsActive(p.id)&&getLevel(S.insumos[p.id]||0,levelsIns(p.id)).lbl==='CRÍTICO').length;
+  const nIns=ALERTAS_INSUMOS?INSUMOS.filter(p=>insIsActive(p.id)&&getLevel(S.insumos[p.id]||0,levelsIns(p.id)).lbl==='CRÍTICO').length:0;
   const n=nInv+nIns;
   const pill=document.getElementById('alertPill');
   if(n>0){pill.innerHTML='<svg class="ic" style="width:14px;height:14px"><use href="#i-bell"/></svg>'+n+'<span class="ap-l"> alerta'+(n>1?'s':'')+'</span>';pill.setAttribute('aria-label',n+' alerta'+(n>1?'s':''));pill.classList.add('on');pill.style.cursor='pointer';pill.onclick=openAlertsModal;}
@@ -2842,7 +2847,7 @@ function renderDash(){
   const total=INV.reduce((s,p)=>s+(S.inv[p.id]||0),0);
   const tot=totalsInv();
   const alerts=INV.filter(p=>prodIsActive(p.id)&&getLevel(S.inv[p.id]||0,S.levels).lbl!=='OK');
-  const insAlerts=INSUMOS.filter(p=>insIsActive(p.id)&&getLevel(S.insumos[p.id]||0,levelsIns(p.id)).lbl==='CRÍTICO');
+  const insAlerts=ALERTAS_INSUMOS?INSUMOS.filter(p=>insIsActive(p.id)&&getLevel(S.insumos[p.id]||0,levelsIns(p.id)).lbl==='CRÍTICO'):[];
   const crits=alerts.filter(p=>getLevel(S.inv[p.id]||0,S.levels).lbl==='CRÍTICO');
 
   (function(){
@@ -3021,7 +3026,7 @@ function openMovDetalle(i){
 function openAlertsModal(){
   document.getElementById('mInfoTitle').textContent='Alertas activas';
   const alerts=INV.filter(p=>prodIsActive(p.id)&&getLevel(S.inv[p.id]||0,S.levels).lbl!=='OK');
-  const insAlerts=INSUMOS.filter(p=>insIsActive(p.id)&&getLevel(S.insumos[p.id]||0,levelsIns(p.id)).lbl!=='OK');
+  const insAlerts=ALERTAS_INSUMOS?INSUMOS.filter(p=>insIsActive(p.id)&&getLevel(S.insumos[p.id]||0,levelsIns(p.id)).lbl!=='OK'):[];
   if(!alerts.length && !insAlerts.length){
     document.getElementById('mInfoBody').innerHTML='<div class="empty"><div class="empty-icon">✅</div><div class="empty-txt">Todo en orden.<br>Nada pide atención ahora.</div></div>';
     openM('mInfo');return;
@@ -4004,7 +4009,7 @@ function baguetteCost(bagKey){ return baguetteCostBreakdown(bagKey).reduce((s,r)
 const MODOS={
   servicio:{n:'Servicio',tabs:['check','dash','armado','ventas'],bn:['check','dash','armado','ventas']},
   produccion:{n:'Producción',tabs:['dash','esc','inv','insumos','compras','hist'],bn:['dash','esc','inv','insumos']},
-  admin:{n:'Administración',tabs:['dash','esc','armado','inv','insumos','compras','ventas','hist','check','costos','config'],bn:['dash','esc','armado','ventas']}
+  admin:{n:'Administración',tabs:['dash','ventas','hist','costos','config'],bn:['dash','ventas','hist','costos','config']}
 };
 let _modo=null;
 // Sugerencia por hora: servicio de 1 pm a 11 pm; el resto, producción
@@ -4036,14 +4041,16 @@ applyModo();
 // ----- Checklists (fase 2): abre / durante / cierre, con quién y a qué hora; firma por fase -----
 const CHK_FASES={
   abre:{n:'Abre',nota:'Hora límite: sous vide puesto a las 8:30 am (abrimos a las 2 o 4 pm).',items:[
+    {k:'manos',t:'Lavarse las manos'},
+    {k:'baguettes',t:'Asegurarse de que todo esté preparado de las 3 baguettes (panes, salsas y mayonesas)'},
+    {k:'estaciones',t:'Preparar las estaciones para empezar y tener listo todo'},
     {k:'pan',t:'Revisar pan Olalá (pedido con 2 días de anticipación)'},
     {k:'equipo',t:'Horno, sartén, plancha e insertos limpios'},
     {k:'botes',t:'Mamilas y botes limpios'},
     {k:'mayos',t:'Mayonesas hechas y guardadas'},
     {k:'stock',t:'Stock vs mínimos (salsas ~5 kg)'},
     {k:'carnes',t:'Carnes sacadas'},
-    {k:'sousvide',t:'Picaña 6 h y vacío 8 h a 55.5 °C; después, sellar'}]},
-  durante:{n:'Durante',nota:'Registra todo en la app y anota en las bolsas.',items:[
+    {k:'sousvide',t:'Picaña 6 h y vacío 8 h a 55.5 °C; después, sellar'},
     {k:'tiempos',t:'Tiempo y temperatura de cada proceso; que nada se queme'},
     {k:'papas',t:'Papas 3 min fuera del congelador antes de freír'},
     {k:'frescos',t:'Echalote frito, papas y arúgula frescos del día'},
@@ -4063,6 +4070,9 @@ const CHK_FASES={
     {k:'ventas',t:'Registrar ventas por canal'}]}
 };
 let _chkFase='abre', _chkRows=[], _chkFirmas=[], _chkIncs=[], _chkErr='';
+// Puntos editados por Andres (tabla fondo_checklist_items); null = usar los de fábrica
+let _chkDefs={abre:null,cierre:null}, _chkEdit=null;
+function chkItems(fase){ return _chkDefs[fase]!==null?_chkDefs[fase]:CHK_FASES[fase].items; }
 function chkHoy(){ const d=new Date(); return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-'); }
 function chkHora(iso){ return iso?new Date(iso).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}):''; }
 async function loadChecklist(){
@@ -4070,13 +4080,20 @@ async function loadChecklist(){
   if(!sb){ _chkErr='Sin conexión a Supabase: no se puede guardar.'; _chkRows=[]; _chkFirmas=[]; _chkIncs=[]; return; }
   try{
     const f=chkHoy();
-    const [a,b,c]=await Promise.all([
+    const [a,b,c,d]=await Promise.all([
       sb.from('fondo_checklist').select('*').eq('fecha',f),
       sb.from('fondo_checklist_firmas').select('*').eq('fecha',f),
-      sb.from('fondo_incidencias').select('*').eq('resuelta',false).order('created_at',{ascending:false}).limit(30)]);
+      sb.from('fondo_incidencias').select('*').eq('resuelta',false).order('created_at',{ascending:false}).limit(30),
+      sb.from('fondo_checklist_items').select('*').order('orden',{ascending:true})]);
     const err=a.error||b.error||c.error;
     _chkErr=err?'Falta supabase/005_checklists.sql o no hay conexión ('+err.message+'). Los cambios no se guardan.':'';
     _chkRows=a.data||[]; _chkFirmas=b.data||[]; _chkIncs=c.data||[];
+    // Si falta la tabla 007 (puntos editables), se quedan los puntos de fábrica
+    if(!d.error&&d.data){
+      const defs={abre:null,cierre:null};
+      d.data.forEach(r=>{ if(!defs[r.fase]) defs[r.fase]=[]; if(r.activo) defs[r.fase].push({k:r.clave,t:r.texto}); });
+      _chkDefs=defs;
+    }
   }catch(e){ _chkErr='Error al leer la checklist: '+e.message; }
 }
 function chkItemHtml(i,r,bloq){
@@ -4087,22 +4104,35 @@ function chkItemHtml(i,r,bloq){
       <button class="btn ${r&&r.estado==='hecho'?'btn-verde':'btn-outline'} btn-sm" ${dis} onclick="chkSet('${i.k}','hecho')">✓ Hecho</button>
       <button class="btn ${r&&r.estado==='no_hecho'?'btn-rojo':'btn-outline'} btn-sm" ${dis} onclick="chkSet('${i.k}','no_hecho')">No hecho</button></div></div>`;
 }
+function chkEditorHtml(){
+  return `<div style="font-size:12.5px;color:var(--text2);margin-bottom:6px;line-height:1.5">Solo tú editas esta lista. Quitar un punto lo oculta; las marcas de días anteriores se conservan.</div>
+  ${_chkEdit.map((it,i)=>`<div class="chk-row" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+    <input type="text" value="${costoEsc(it.t)}" oninput="chkEditTxt(${i},this.value)" style="flex:1;min-width:180px">
+    <button class="btn btn-outline btn-sm" onclick="chkEditMover(${i},-1)" ${i===0?'disabled':''}>↑</button>
+    <button class="btn btn-outline btn-sm" onclick="chkEditMover(${i},1)" ${i===_chkEdit.length-1?'disabled':''}>↓</button>
+    <button class="btn btn-rojo btn-sm" onclick="chkEditQuitar(${i})">Quitar</button></div>`).join('')}
+  <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap"><input type="text" id="chkNuevo" placeholder="Nuevo punto" style="flex:1;min-width:180px"><button class="btn btn-outline btn-sm" onclick="chkEditAgregar()">Agregar</button></div>
+  <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn btn-verde" onclick="chkEditGuardar()">Guardar checklist</button><button class="btn btn-outline" onclick="chkEditCancelar()">Cancelar</button></div>`;
+}
 function renderCheck(){
   const el=document.getElementById('checkRoot'); if(!el) return;
-  const F=CHK_FASES[_chkFase], firma=_chkFirmas.find(x=>x.fase===_chkFase), bloq=!!firma;
+  const F=CHK_FASES[_chkFase], items=chkItems(_chkFase), firma=_chkFirmas.find(x=>x.fase===_chkFase), bloq=!!firma;
   const by=Object.fromEntries(_chkRows.filter(r=>r.fase===_chkFase).map(r=>[r.item,r]));
-  const hechos=F.items.filter(i=>by[i.k]).length;
-  const conteo=k=>`${_chkRows.filter(r=>r.fase===k).length}/${CHK_FASES[k].items.length}`;
+  const hechos=items.filter(i=>by[i.k]).length;
+  const conteo=k=>`${_chkRows.filter(r=>r.fase===k).length}/${chkItems(k).length}`;
+  const esAndres=S.activeUser==='Andres';
   el.innerHTML=`
   <div class="card">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-list"/></svg></span>Checklist · ${new Date().toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'})}</div>
     <div style="overflow-x:auto"><div class="seg" role="group" aria-label="Fase">${Object.keys(CHK_FASES).map(k=>`<button class="${k===_chkFase?'on':''}" onclick="chkFaseSet('${k}')">${CHK_FASES[k].n} ${conteo(k)}</button>`).join('')}</div></div>
     <p style="font-size:12.5px;color:var(--text2);margin:10px 0 4px;line-height:1.5">${costoEsc(F.nota)}</p>
+    ${esAndres&&!_chkEdit?`<div style="margin:6px 0"><button class="btn btn-outline btn-sm" onclick="chkEditAbrir()">Editar checklist</button></div>`:''}
     ${_chkErr?`<div class="chip-w" style="display:block;margin:6px 0;white-space:normal">${costoEsc(_chkErr)}</div>`:''}
     ${firma?`<div style="font-size:13px;color:var(--verde-light);margin:8px 0">Firmado por ${costoEsc(firma.usuario)} a las ${chkHora(firma.hora)}. Esta fase ya no se puede cambiar hoy.</div>`:''}
-    <div style="font-size:12.5px;color:var(--text3);margin-bottom:2px">${hechos} de ${F.items.length} marcados</div>
-    ${F.items.map(i=>chkItemHtml(i,by[i.k],bloq)).join('')}
-    ${bloq?'':`<div style="margin-top:12px"><button class="btn btn-verde" onclick="chkFirmar()" ${hechos<F.items.length?'disabled':''}>Firmar ${F.n} como ${costoEsc(S.activeUser||'')}</button>${hechos<F.items.length?'<div style="font-size:12px;color:var(--text3);margin-top:4px">Marca todos los puntos para firmar.</div>':''}</div>`}
+    ${_chkEdit?chkEditorHtml():`
+    <div style="font-size:12.5px;color:var(--text3);margin-bottom:2px">${hechos} de ${items.length} marcados</div>
+    ${items.map(i=>chkItemHtml(i,by[i.k],bloq)).join('')}
+    ${bloq?'':`<div style="margin-top:12px"><button class="btn btn-verde" onclick="chkFirmar()" ${hechos<items.length?'disabled':''}>Firmar ${F.n} como ${costoEsc(S.activeUser||'')}</button>${hechos<items.length?'<div style="font-size:12px;color:var(--text3);margin-top:4px">Marca todos los puntos para firmar.</div>':''}</div>`}`}
   </div>
   <div class="card">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-bell"/></svg></span>Incidencias abiertas</div>
@@ -4115,7 +4145,38 @@ function renderCheck(){
   </div>`;
   hidratarFotos();
 }
-function chkFaseSet(k){ _chkFase=k; renderCheck(); }
+function chkFaseSet(k){ _chkFase=k; _chkEdit=null; renderCheck(); }
+// ----- Editor de puntos: solo Andres (la base de datos lo exige también) -----
+function chkEditAbrir(){
+  if(S.activeUser!=='Andres') return showToast('Solo Andres edita la checklist.');
+  _chkEdit=chkItems(_chkFase).map(i=>({k:i.k,t:i.t})); renderCheck();
+}
+function chkEditCancelar(){ _chkEdit=null; renderCheck(); }
+function chkEditTxt(i,v){ if(_chkEdit&&_chkEdit[i]) _chkEdit[i].t=v; }
+function chkEditMover(i,d){
+  const j=i+d; if(!_chkEdit||j<0||j>=_chkEdit.length) return;
+  [_chkEdit[i],_chkEdit[j]]=[_chkEdit[j],_chkEdit[i]]; renderCheck();
+}
+function chkEditQuitar(i){ if(_chkEdit){ _chkEdit.splice(i,1); renderCheck(); } }
+function chkEditAgregar(){
+  const t=(document.getElementById('chkNuevo')?.value||'').trim();
+  if(!t) return showToast('Escribe el punto.');
+  _chkEdit.push({k:'n'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),t}); renderCheck();
+}
+async function chkEditGuardar(){
+  if(S.activeUser!=='Andres') return showToast('Solo Andres edita la checklist.');
+  const sb=getSB(); if(!sb) return showToast('Sin conexión.');
+  const lista=(_chkEdit||[]).map(x=>({k:x.k,t:(x.t||'').trim()}));
+  if(!lista.length) return showToast('La checklist no puede quedar vacía.');
+  if(lista.some(x=>!x.t)) return showToast('Hay puntos vacíos.');
+  const quitados=chkItems(_chkFase).filter(i=>!lista.some(x=>x.k===i.k));
+  const filas=[
+    ...lista.map((x,i)=>({fase:_chkFase,clave:x.k,texto:x.t,orden:i+1,activo:true,actualizado_por:S.activeUser})),
+    ...quitados.map(x=>({fase:_chkFase,clave:x.k,texto:x.t,orden:0,activo:false,actualizado_por:S.activeUser}))];
+  const {error}=await sb.from('fondo_checklist_items').upsert(filas,{onConflict:'fase,clave'});
+  if(error) return showToast('No se pudo guardar: '+error.message);
+  _chkEdit=null; await loadChecklist(); renderCheck(); showToast('Checklist guardada.');
+}
 async function chkSet(item,estado){
   const sb=getSB(); if(!sb) return showToast('Sin conexión: no se puede guardar.');
   const f=chkHoy(), cur=_chkRows.find(r=>r.fase===_chkFase&&r.item===item);
@@ -4133,7 +4194,7 @@ async function chkSet(item,estado){
 }
 async function chkFirmar(){
   const F=CHK_FASES[_chkFase], sb=getSB(); if(!sb) return showToast('Sin conexión.');
-  const pend=F.items.filter(i=>!_chkRows.some(r=>r.fase===_chkFase&&r.item===i.k));
+  const pend=chkItems(_chkFase).filter(i=>!_chkRows.some(r=>r.fase===_chkFase&&r.item===i.k));
   if(pend.length) return showToast('Faltan '+pend.length+' punto(s) por marcar.');
   if(!confirm(`¿Firmar ${F.n} como ${S.activeUser}? Después ya no se puede cambiar.`)) return;
   const {error}=await sb.from('fondo_checklist_firmas').insert({fecha:chkHoy(),fase:_chkFase,usuario:S.activeUser||''});
