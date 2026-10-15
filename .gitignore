@@ -1,0 +1,6 @@
+# Solo index.html se publica en GitHub (repositorio público)
+supabase/
+.claude/
+*.xlsx
+*.md
+index.backup.html
