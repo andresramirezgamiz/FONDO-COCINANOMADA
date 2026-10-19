@@ -989,6 +989,7 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
   <div class="card">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-coin"/></svg></span>Precios de venta y comisiones</div>
     <p style="font-size:11px;color:var(--gris);margin-bottom:14px">Precio de cada baguette por plataforma y la comisión que cobra cada una. Se usa para calcular tu utilidad real. Se guarda solo.</p>
+    <div id="cfgNubeCostos"></div>
     <div id="salePricesEditor"></div>
   </div>
 
@@ -2123,6 +2124,8 @@ async function initSB(){
         if(r.key==='priceMeta') S.priceMeta={...(S.priceMeta||{}),...r.value};
         if(r.key==='provRules') S.provRules={...(S.provRules||{}),...r.value};
         if(r.key==='aparte') S.aparte={...(S.aparte||{}),...r.value};
+        // Ajustes de costos compartidos: la nube manda (los define Andres)
+        if(COSTO_CFG_KEYS.includes(r.key)&&(!['platforms','empaques'].includes(r.key)||Array.isArray(r.value))){ S[r.key]=r.value; _cfgNube.add(r.key); }
         if(r.key==='fin'){ _cloudFinVer=r.value.ver||0; const {ver,...rest}=r.value; S.fin={...(S.fin||{}),...rest}; } });
     }catch(e){}
     // Lotes de producto final compartidos (supabase/004): lo que queda de cada lote producido
@@ -3608,9 +3611,41 @@ async function confirmCompra(){
 }
 // Configuración compartida entre dispositivos (tabla fondo_config: key/value) — resiliente
 async function saveCfgToDB(key,val){
-  const sb=getSB(); if(!sb)return;
-  try{ const {error}=await sb.from('fondo_config').upsert({key,value:val}); if(error) console.warn('SB config:',error.message); }
-  catch(e){ console.warn('SB config:',e.message); }
+  const sb=getSB(); if(!sb)return false;
+  try{ const {error}=await sb.from('fondo_config').upsert({key,value:val}); if(error){ console.warn('SB config:',error.message); return false; } return true; }
+  catch(e){ console.warn('SB config:',e.message); return false; }
+}
+// Ajustes de costos compartidos por los 3 perfiles: solo Andres los cambia (supabase/008 lo exige también)
+const COSTO_CFG_KEYS=['salePrices','commissions','platforms','bagGramajes','empaques'];
+const COSTO_CFG_DEF={salePrices:()=>DEFAULT_SALE_PRICES,commissions:()=>DEFAULT_COMMISSIONS,platforms:()=>DEFAULT_PLATFORMS,bagGramajes:()=>DEFAULT_BAG_GRAMAJES,empaques:()=>DEFAULT_EMPAQUES};
+let _cfgNube=new Set(), _cfgTimers={};
+function puedeEditarCostos(){ if(S.activeUser==='Andres') return true; showToast('Solo Andres cambia precios, comisiones, gramajes y empaques.'); return false; }
+function subirCfgCosto(key){
+  if(S.activeUser!=='Andres') return;
+  clearTimeout(_cfgTimers[key]);
+  _cfgTimers[key]=setTimeout(async()=>{ if(await saveCfgToDB(key,S[key])) _cfgNube.add(key); },600);
+}
+function bloquearSiNoAndres(el){
+  if(!el||S.activeUser==='Andres') return;
+  el.querySelectorAll('input,button,select,textarea').forEach(x=>x.disabled=true);
+  el.insertAdjacentHTML('afterbegin','<div style="font-size:12px;color:var(--text3);margin-bottom:8px">Solo Andres edita esta sección; aquí ves lo que está en la nube.</div>');
+}
+async function publicarCfgCostos(){
+  if(!puedeEditarCostos()) return;
+  if(!confirm('¿Publicar los precios de venta, comisiones, plataformas, gramajes y empaques de ESTE dispositivo para los 3 perfiles?')) return;
+  let ok=true;
+  for(const k of COSTO_CFG_KEYS){
+    if(S[k]==null) S[k]=JSON.parse(JSON.stringify(COSTO_CFG_DEF[k]()));
+    if(await saveCfgToDB(k,S[k])) _cfgNube.add(k); else ok=false;
+  }
+  saveS(); renderCfgNube();
+  showToast(ok?'Ajustes publicados para los 3 perfiles.':'No se pudo publicar todo (¿falta supabase/008 o sin conexión?).');
+}
+function renderCfgNube(){
+  const el=document.getElementById('cfgNubeCostos'); if(!el) return;
+  const faltan=COSTO_CFG_KEYS.filter(k=>!_cfgNube.has(k));
+  const estado=faltan.length?`<span style="color:#f0a36a">Aún no están en la nube: ${faltan.length} de ${COSTO_CFG_KEYS.length}. Cada dispositivo usa lo suyo.</span>`:'<span style="color:var(--verde-light)">Compartidos en la nube: los 3 perfiles ven lo mismo.</span>';
+  el.innerHTML=`<div style="font-size:12.5px;line-height:1.5;margin-bottom:10px">${estado}</div>${S.activeUser==='Andres'?`<button class="btn btn-outline btn-sm" onclick="publicarCfgCostos()" style="margin-bottom:12px">Publicar los ajustes de este dispositivo</button>`:''}`;
 }
 async function consumirLotesNube(tomado){
   const sb=getSB(); if(!sb) return;
@@ -4340,7 +4375,7 @@ function renderCostos(){
     <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Canal</th><th>Precio venta</th><th>Comisión</th><th style="text-align:right">${bru?'Utilidad bruta':'Utilidad neta'}</th><th style="text-align:right">Margen</th></tr></thead><tbody>
     ${getPlatforms().map(pl=>{ const x=bagFin(k,pl.k); return `<tr>
       <td style="font-weight:700;color:var(--crema);white-space:nowrap"><i style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${pl.color||'var(--dorado)'};margin-right:6px"></i>${costoEsc(pl.n)}</td>
-      <td><input type="number" inputmode="decimal" value="${x.price}" onchange="setCostoPrecioVenta('${k}','${pl.k}',this.value)" style="width:84px"></td>
+      <td><input type="number" inputmode="decimal" value="${x.price}" onchange="setCostoPrecioVenta('${k}','${pl.k}',this.value)" ${esAndres?'':'disabled'} style="width:84px"></td>
       <td>${Math.round(x.cpct*100)}%</td>
       <td style="text-align:right;font-weight:700;color:${x.util>=0?marginColor(x.mg):'#ff7a7a'}">${fmtM(x.util,2)}</td>
       <td style="text-align:right;color:${marginColor(x.mg)}">${x.mg.toFixed(0)}%</td></tr>`; }).join('')}
@@ -4391,41 +4426,46 @@ function renderSalePricesEditor(){
     ${p.fixed?'<span></span>':`<button onclick="removePlatform(${i})" title="Quitar" style="width:34px;height:34px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:#ff8a8a;cursor:pointer;font-size:14px">✕</button>`}
   </div>`).join('');
   html+=`<button class="btn btn-outline" onclick="addPlatform()" style="margin-top:12px"><svg class="ic"><use href="#i-plus"/></svg>Agregar plataforma</button>`;
-  el.innerHTML=html;
+  el.innerHTML=html; bloquearSiNoAndres(el); renderCfgNube();
 }
 function _ensurePlatforms(){ if(!S.platforms||!S.platforms.length) S.platforms=JSON.parse(JSON.stringify(DEFAULT_PLATFORMS)); }
 function savePlatformField(i,field,val){
+  if(!puedeEditarCostos()) return renderSalePricesEditor();
   _ensurePlatforms();
   if(field==='comm') S.platforms[i].comm=(parseFloat(val)||0)/100;
   else S.platforms[i][field]=val;
   if(field==='n'){ S.platforms[i].k = S.platforms[i].k; } // la clave no cambia para no romper ventas pasadas
-  saveS();
+  saveS(); subirCfgCosto('platforms');
   if(field!=='n') renderSalePricesEditor();
 }
 function addPlatform(){
+  if(!puedeEditarCostos()) return;
   _ensurePlatforms();
   const k='plat_'+Date.now().toString(36);
   S.platforms.push({k,n:'Nueva plataforma',comm:0.2,color:'#c9a24b'});
-  saveS(); renderSalePricesEditor();
+  saveS(); subirCfgCosto('platforms'); renderSalePricesEditor();
 }
 function removePlatform(i){
+  if(!puedeEditarCostos()) return;
   _ensurePlatforms();
   if(S.platforms[i].fixed) return;
   const name=S.platforms[i].n;
   if(!confirm(`¿Quitar "${name}"? Las ventas ya registradas con esta plataforma se conservan.`)) return;
   S.platforms.splice(i,1);
-  saveS(); renderSalePricesEditor();
+  saveS(); subirCfgCosto('platforms'); renderSalePricesEditor();
 }
 function saveSalePriceField(bagKey,plat,val){
+  if(!puedeEditarCostos()) return false;
   if(!S.salePrices) S.salePrices=JSON.parse(JSON.stringify(DEFAULT_SALE_PRICES));
   if(!S.salePrices[bagKey]) S.salePrices[bagKey]={};
   S.salePrices[bagKey][plat]=parseFloat(val)||0;
-  saveS();
+  saveS(); subirCfgCosto('salePrices'); return true;
 }
 function saveCommissionField(plat,val){
+  if(!puedeEditarCostos()) return;
   if(!S.commissions) S.commissions={...DEFAULT_COMMISSIONS};
   S.commissions[plat]=(parseFloat(val)||0)/100;
-  saveS();
+  saveS(); subirCfgCosto('commissions');
 }
 
 // ----- Config: Empaques -----
@@ -4447,24 +4487,27 @@ function renderEmpaquesEditor(){
     <span>Costo de empaque por baguette:</span><span style="color:var(--dorado-light);font-weight:700">${fmtM(empaqueCostBaguette(),2)}</span>
   </div>`;
   html+=`<button onclick="addEmpaque()" style="background:rgba(47,114,87,.15);border:1px solid rgba(47,114,87,.3);color:var(--verde-light);border-radius:8px;padding:9px 14px;cursor:pointer;font-size:11px;width:100%;margin-top:4px">+ Agregar empaque</button>`;
-  el.innerHTML=html;
+  el.innerHTML=html; bloquearSiNoAndres(el);
 }
 function saveEmpaqueField(i,field,val){
+  if(!puedeEditarCostos()) return renderEmpaquesEditor();
   if(!S.empaques) S.empaques=JSON.parse(JSON.stringify(DEFAULT_EMPAQUES));
   if(field==='n') S.empaques[i][field]=val;
   else S.empaques[i][field]=parseFloat(val)||0;
-  saveS();
+  saveS(); subirCfgCosto('empaques');
   if(field!=='n') renderEmpaquesEditor();
 }
 function addEmpaque(){
+  if(!puedeEditarCostos()) return;
   if(!S.empaques) S.empaques=JSON.parse(JSON.stringify(DEFAULT_EMPAQUES));
   S.empaques.push({id:'emp_'+Date.now(),n:'Nuevo empaque',precio:0,porBag:0,porPapas:0});
-  saveS(); renderEmpaquesEditor();
+  saveS(); subirCfgCosto('empaques'); renderEmpaquesEditor();
 }
 function removeEmpaque(i){
+  if(!puedeEditarCostos()) return;
   if(!S.empaques) S.empaques=JSON.parse(JSON.stringify(DEFAULT_EMPAQUES));
   S.empaques.splice(i,1);
-  saveS(); renderEmpaquesEditor();
+  saveS(); subirCfgCosto('empaques'); renderEmpaquesEditor();
 }
 
 // ================================================================
@@ -4851,11 +4894,12 @@ function getGramaje(bagKey,compId){
   return c?c.g:null;
 }
 function setGramajeArmado(bagKey,compId,val){
+  if(!puedeEditarCostos()) return renderArmadoVisual();
   if(!S.bagGramajes) S.bagGramajes=JSON.parse(JSON.stringify(DEFAULT_BAG_GRAMAJES));
   const comps=S.bagGramajes[bagKey]||(S.bagGramajes[bagKey]=[]);
   const c=comps.find(x=>x.id===compId);
   if(c) c.g=parseFloat(val)||0;
-  saveS();
+  saveS(); subirCfgCosto('bagGramajes');
   renderArmadoVisual();
 }
 
@@ -5039,27 +5083,30 @@ function renderBagGramajes(){
       <button onclick="addBagComp('${key}')" style="background:rgba(45,106,79,.15);border:1px solid rgba(45,106,79,.3);color:#5dba8a;border-radius:6px;padding:7px 12px;cursor:pointer;font-size:11px;margin-top:4px">+ Agregar ingrediente</button>
     </div>`;
   });
-  el.innerHTML = html;
+  el.innerHTML = html; bloquearSiNoAndres(el);
 }
 
 function updateBagComp(bagKey, idx, field, val){
+  if(!puedeEditarCostos()) return renderBagGramajes();
   if(!S.bagGramajes) S.bagGramajes = JSON.parse(JSON.stringify(DEFAULT_BAG_GRAMAJES));
   if(!S.bagGramajes[bagKey]) S.bagGramajes[bagKey] = [...DEFAULT_BAG_GRAMAJES[bagKey]];
   S.bagGramajes[bagKey][idx][field] = val;
-  saveS();
+  saveS(); subirCfgCosto('bagGramajes');
 }
 
 function removeBagComp(bagKey, idx){
+  if(!puedeEditarCostos()) return;
   if(!S.bagGramajes) S.bagGramajes = JSON.parse(JSON.stringify(DEFAULT_BAG_GRAMAJES));
   S.bagGramajes[bagKey].splice(idx, 1);
-  saveS(); renderBagGramajes();
+  saveS(); subirCfgCosto('bagGramajes'); renderBagGramajes();
 }
 
 function addBagComp(bagKey){
+  if(!puedeEditarCostos()) return;
   if(!S.bagGramajes) S.bagGramajes = JSON.parse(JSON.stringify(DEFAULT_BAG_GRAMAJES));
   if(!S.bagGramajes[bagKey]) S.bagGramajes[bagKey] = [];
   S.bagGramajes[bagKey].push({id:'nuevo',n:'Nuevo ingrediente',g:0});
-  saveS(); renderBagGramajes();
+  saveS(); subirCfgCosto('bagGramajes'); renderBagGramajes();
 }
 
 // ================================================================
@@ -6104,7 +6151,7 @@ function renderArmadoVisual(){
       </div>
       ${cur.compId&&g!=null?`<div style="display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r10);padding:10px 12px;margin-bottom:12px">
         <span style="font-size:13px;font-weight:600;color:var(--text2)">Porción</span>
-        <input type="number" inputmode="decimal" value="${g}" oninput="setGramajeArmado('${_armadoBag}','${cur.compId}',this.value)" style="width:90px;padding:8px;text-align:center;font-size:16px;font-weight:600">
+        <input type="number" inputmode="decimal" value="${g}" oninput="setGramajeArmado('${_armadoBag}','${cur.compId}',this.value)" ${S.activeUser==='Andres'?'':'disabled title="Solo Andres cambia gramajes"'} style="width:90px;padding:8px;text-align:center;font-size:16px;font-weight:600">
         <span style="font-size:13px;color:var(--gris)">${cur.compId==='pan'?'pieza':'gramos'}</span>
       </div>`:''}
       <div class="step-text" style="font-size:14px">${note}</div>
