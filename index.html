@@ -457,6 +457,13 @@ button:active,.btn:active,.pill:active,.fch:active,.pk-row:active{transform:scal
 .cc-det summary{cursor:pointer;color:var(--dorado);font-size:12.5px;font-weight:600;margin-top:4px}
 .cc-det .det-body{font-size:12.5px;color:var(--text2);padding:6px 0 2px 2px;line-height:1.6}
 .chk-row{padding:10px 0;border-bottom:1px solid var(--border)}
+.cfg-grp{border:1px solid var(--border);border-radius:var(--r10);margin-bottom:10px;background:var(--surface);overflow:hidden}
+.cfg-grp-h{width:100%;display:flex;align-items:center;gap:10px;padding:15px 16px;background:transparent;border:0;color:var(--crema);font:700 15px var(--sans);cursor:pointer;text-align:left}
+.cfg-grp-h::after{content:'›';font-size:20px;line-height:1;color:var(--text3);transition:transform .2s}
+.cfg-grp.open .cfg-grp-h::after{transform:rotate(90deg)}
+.cfg-grp-c{margin-left:auto;font-size:12px;color:var(--text3);font-weight:600}
+.cfg-grp-b{display:none;padding:0 10px 10px}
+.cfg-grp.open .cfg-grp-b{display:block}
 .modo-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 10px}
 .modo-bar .seg{max-width:100%;overflow-x:auto}
 .modo-hint{font-size:11.5px;color:var(--text3)}
@@ -656,7 +663,7 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
     </div>
     <div class="hdr-right">
       <span class="alert-pill" id="alertPill"><svg class="ic" style="width:14px;height:14px"><use href="#i-bell"/></svg>Alertas</span>
-      <span id="sbDot" class="sync-btn" style="cursor:pointer" onclick="manualSync()" title="Sincronizar"><span class="dot"></span><span id="sbDotTxt">—</span></span>
+      <span id="sbDot" class="sync-btn" style="cursor:pointer" onclick="abrirPerfil()" title="Perfil y sincronización"><span class="dot"></span><span id="sbDotTxt">—</span></span>
     </div>
   </div>
   <div class="modo-bar" id="modoBar">
@@ -718,25 +725,28 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
 <div class="page on" id="page-dash">
 <div class="inner">
   <div class="hero" id="dashHero"></div>
-  <div class="card" id="dashVentas"></div>
+  <div class="card" id="dashServicio" data-modos="servicio"></div>
+  <div class="card" id="dashVentas" data-modos="servicio,admin"></div>
+  <div class="card" id="dashProduccion" data-modos="produccion"></div>
   <div class="dash-grid" id="dashStats" style="display:none"></div>
-  <div class="card">
+  <div class="card" data-modos="produccion,admin">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-chart"/></svg></span>Gráficas</div>
     <div id="dashCharts"></div>
   </div>
-  <div class="card">
+  <div id="dashCostosFull" data-modos="admin"></div>
+  <div class="card" data-modos="ninguno">
     <div class="card-title" style="justify-content:space-between"><span style="display:inline-flex;align-items:center;gap:10px"><span class="icon"><svg class="ic"><use href="#i-coin"/></svg></span>Costo y utilidad por baguette</span><span id="dashCostosMode"></span></div>
     <div id="dashCostos"></div>
   </div>
-  <div class="card">
+  <div class="card" data-modos="produccion,admin">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-bell"/></svg></span>Alertas activas</div>
     <div id="dashAlerts"><div class="empty"><div class="empty-icon">✅</div><div class="empty-txt">Todo en orden.<br>Nada pide atención ahora.</div></div></div>
   </div>
-  <div class="card">
+  <div class="card" data-modos="produccion,admin">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-flame"/></svg></span>Producir pronto</div>
     <div id="dashSugest"></div>
   </div>
-  <div class="card">
+  <div class="card" data-modos="admin">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-clock"/></svg></span>Últimos movimientos</div>
     <div id="dashHist"></div>
   </div>
@@ -1922,7 +1932,7 @@ function activeSets(){
   Object.keys(papasNeeds(100,'trufa')).forEach(i=>ins.add(i));      // las papas siempre están activas
   return {prod,ins};
 }
-let _asCache=null;
+let _asCache=null, _oiCache=null;   // _oiCache: lo que solo usan baguettes inactivas
 function _activeSets(){ return _asCache||(_asCache=activeSets()); }
 function prodIsActive(id){return _activeSets().prod.has(id);}
 function insIsActive(id){return _activeSets().ins.has(id);}
@@ -2241,7 +2251,7 @@ function loadS(){
 }
 
 async function saveS(){
-  _asCache=null;
+  _asCache=null; _oiCache=null;
   localStorage.setItem('fondo_v3',JSON.stringify({
     inv:S.inv,hist:S.hist,prices:S.prices,
     insumos:S.insumos,insHist:S.insHist,
@@ -2468,14 +2478,10 @@ function renderRecMenu(){
     const open=_rgOpen[id]||keys.includes(sel);
     return `<div class="rg ${open?'open':''} ${dim?'dim':''}"><button class="rg-h" onclick="toggleRG('${id}')"><span class="sigil" style="width:40px;height:40px">${icon}</span><span><div class="rg-n">${title}</div><div class="rg-s">${keys.length} recetas</div></span><span class="rg-chev"></span></button><div class="rg-b">${keys.map((k,i)=>row(k,labels&&labels[k],i)).join('')}</div></div>`;
   };
-  const act=activeBagKeys(), ina=BAG_ORDER.filter(k=>!bagIsActive(k));
+  // Las baguettes inactivas no aparecen aquí (solo en Configuración)
   let html='';
-  act.forEach(k=>{ html+=group(k,BAG_NAMES[k],bagSigil(k,30),BAG_RECIPES[k]); });
+  activeBagKeys().forEach(k=>{ html+=group(k,BAG_NAMES[k],bagSigil(k,30),BAG_RECIPES[k]); });
   html+=group('papas','Papas a la francesa',papasSigil(30),PAPAS_RECIPES,false,REC_LABEL_PAPAS);
-  if(ina.length){
-    html+='<div class="rg-sec">Inactivas · Próximamente</div>';
-    ina.forEach(k=>{ html+=group(k,BAG_NAMES[k],bagSigil(k,30),BAG_RECIPES[k],true); });
-  }
   el.innerHTML=html;
 }
 
@@ -2809,9 +2815,10 @@ function renderInv(){
     if(dim) d.style.opacity='.55';
     list.appendChild(d);
   };
-  const _act=prods.filter(p=>prodIsActive(p.id)), _ina=prods.filter(p=>!prodIsActive(p.id));
+  // Lo que solo usan baguettes inactivas no se muestra; lo que no usa ninguna baguette va al final
+  const _act=prods.filter(p=>prodIsActive(p.id)), _ina=prods.filter(p=>!prodIsActive(p.id)&&!prodOculto(p.id));
   _act.forEach(p=>_mkInv(p,false));
-  if(_ina.length){ const hd=document.createElement('div'); hd.className='rg-sec'; hd.textContent='Inactivas · Próximamente'; list.appendChild(hd); _ina.forEach(p=>_mkInv(p,true)); }
+  if(_ina.length){ const hd=document.createElement('div'); hd.className='rg-sec'; hd.textContent='Sin baguette activa'; list.appendChild(hd); _ina.forEach(p=>_mkInv(p,true)); }
   updateAlertPill();
 }
 
@@ -2844,6 +2851,7 @@ function toggleAlerts(btn){
 // DASHBOARD
 // ================================================================
 function renderDash(){
+  dashModo();
   renderDashSales();
   renderDashCosts();
   renderDashCharts();
@@ -3363,6 +3371,27 @@ async function doLogout(){
   try{ const sb=getSB(); if(sb) await sb.auth.signOut(); }catch(e){}
   location.reload();
 }
+// Perfil: tocar el nombre de arriba permite cambiar de socio (pide su código) o sincronizar
+function abrirPerfil(){
+  const yo=S.activeUser||'—';
+  document.getElementById('mInfoTitle').textContent='Perfil';
+  document.getElementById('mInfoBody').innerHTML=`<div style="font-size:14px;color:var(--text2);margin-bottom:12px">Estás como <b style="color:var(--crema)">${costoEsc(yo)}</b>.</div>
+    <div class="lbl">Cambiar a</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 8px">${Object.keys(SOCIO_EMAIL).filter(n=>n!==yo).map(n=>`<button class="btn btn-outline" onclick="cambiarPerfil('${n}')">${n}</button>`).join('')}</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:14px">Se cierra tu sesión y se pide el código de 6 dígitos de quien entra.</div>
+    <div class="btn-row"><button class="btn btn-outline" onclick="closeM('mInfo');manualSync()">Sincronizar ahora</button><button class="btn btn-outline" onclick="doLogout()">Cerrar sesión</button></div>`;
+  openM('mInfo');
+}
+async function cambiarPerfil(n){
+  if(!SOCIO_EMAIL[n]) return;
+  try{ sessionStorage.setItem('fondo_cambiar_a',n); }catch(e){}
+  await doLogout();
+}
+// Tras cambiar de perfil, el login ya trae elegido al socio y solo pide su código
+document.addEventListener('DOMContentLoaded',()=>{
+  let n=null; try{ n=sessionStorage.getItem('fondo_cambiar_a'); sessionStorage.removeItem('fondo_cambiar_a'); }catch(e){}
+  if(n&&SOCIO_EMAIL[n]) pickSocio(n);
+});
 async function tryRestoreSession(){
   try{
     const sb=getSB(); if(!sb) return;
@@ -3416,7 +3445,7 @@ function setInsFilter(f,el){
 function renderInsumos(){
   const list=document.getElementById('insList'); if(!list)return;
   if(S.insFilter==='Empaques'){ renderEmpaqueStock(list); return; }
-  const fil=INSUMOS.filter(p=>S.insFilter==='all'||p.cat===S.insFilter);
+  const fil=INSUMOS.filter(p=>!insOculto(p.id)&&(S.insFilter==='all'||p.cat===S.insFilter));
   if(!fil.length){list.innerHTML='<div class="empty"><div class="empty-icon">📦</div><div class="empty-txt">No hay insumos en esta categoría.</div></div>';return;}
   let html='';
   const cats=[...new Set(fil.map(p=>p.cat))];
@@ -4044,7 +4073,7 @@ function baguetteCost(bagKey){ return baguetteCostBreakdown(bagKey).reduce((s,r)
 const MODOS={
   servicio:{n:'Servicio',tabs:['check','dash','armado','ventas'],bn:['check','dash','armado','ventas']},
   produccion:{n:'Producción',tabs:['dash','esc','inv','insumos','compras','hist'],bn:['dash','esc','inv','insumos']},
-  admin:{n:'Administración',tabs:['dash','ventas','hist','costos','config'],bn:['dash','ventas','hist','costos','config']}
+  admin:{n:'Administración',tabs:['dash','ventas','hist','config'],bn:['dash','ventas','hist','config']}
 };
 let _modo=null;
 // Sugerencia por hora: servicio de 1 pm a 11 pm; el resto, producción
@@ -4067,11 +4096,145 @@ function setModo(m){
   if(!MODOS[m]) return;
   _modo=m; try{ localStorage.setItem('fondo_modo',m); }catch(e){}
   applyModo();
+  if(document.getElementById('page-dash')?.classList.contains('on')) renderDash();   // cada modo tiene su dashboard
   // Si la pantalla abierta no está en este modo, abre la primera del modo
   const pag=document.querySelector('.page.on')?.id.replace('page-','');
   if(pag&&!MODOS[m].tabs.includes(pag)) openTab(MODOS[m].tabs[0]);
 }
 applyModo();
+
+// ----- Dashboard por modo: Servicio (ventas e inventario), Producción (semana mié–dom), Administración (todo + costos) -----
+const DIAS_SERV=[3,4,5,6,0];   // abrimos de miércoles a domingo
+const DIA_N=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+function dashModo(){
+  const m=_modo||'admin';
+  document.querySelectorAll('#page-dash [data-modos]').forEach(c=>{ c.style.display=c.dataset.modos.split(',').includes(m)?'':'none'; });
+  if(m==='servicio') renderDashServicio();
+  if(m==='produccion') renderDashProduccion();
+  // No redibujar costos mientras Andres escribe un precio (la sincronización corre cada 30 s)
+  if(m==='admin'&&!document.getElementById('dashCostosFull')?.contains(document.activeElement)) renderCostos();
+}
+function inicioSemanaServicio(ts){ const d=new Date(ts); d.setHours(0,0,0,0); d.setDate(d.getDate()-((d.getDay()-3+7)%7)); return d.getTime(); }
+function diasServicioRestantes(){ const w=new Date().getDay(); return w===0?1:(w>=3?8-w:5); }   // hasta el domingo, contando hoy
+function ventasEntre(a,b){ return (S.ventas||[]).filter(v=>v&&v.ts>=a&&v.ts<b); }
+function bagsVendidas(vs){ const o={}; vs.forEach(v=>Object.keys(v.items||{}).forEach(k=>{ if(BAG_NAMES[k]) o[k]=(o[k]||0)+(v.items[k]||0); })); return o; }
+function sumaBags(o){ return Object.values(o).reduce((s,x)=>s+x,0); }
+// Baguettes que alcanzan con el stock actual: manda el componente que se acaba primero
+function baguettesQuedan(bk){
+  const need={};
+  ((S.bagGramajes||DEFAULT_BAG_GRAMAJES)[bk]||[]).forEach(c=>{
+    if(!c.id||c.id==='nuevo'||!(c.g>0)) return;
+    let key=null, stock=0, n=c.n||c.id;
+    if(PAPAS_COMP_IDS.includes(c.id)){ key='ins:papas'; stock=S.insumos.papas||0; n='Papas'; }
+    else if(INV.some(p=>p.id===c.id)){ key='inv:'+c.id; stock=S.inv[c.id]||0; }
+    else if(INSUMOS.some(p=>p.id===c.id)){ key='ins:'+c.id; stock=S.insumos[c.id]||0; }
+    else if(INSUMOS.some(p=>p.id===c.id+'_raw')){ key='ins:'+c.id+'_raw'; stock=S.insumos[c.id+'_raw']||0; }
+    if(!key) return;
+    if(!need[key]) need[key]={g:0,stock,n};
+    need[key].g+=c.g;
+  });
+  let q=Infinity, lim='';
+  Object.values(need).forEach(x=>{ const k=Math.floor(x.stock/x.g); if(k<q){ q=k; lim=x.n; } });
+  return q===Infinity?{q:null,lim:''}:{q,lim};
+}
+function renderDashServicio(){
+  const el=document.getElementById('dashServicio'); if(!el) return;
+  const hoy=new Date(); hoy.setHours(0,0,0,0); const ahora=Date.now()+1;
+  const vHoy=ventasEntre(hoy.getTime(),ahora), vSem=ventasEntre(inicioSemanaServicio(Date.now()),ahora);
+  const bH=bagsVendidas(vHoy), bS=bagsVendidas(vSem), dinero=vs=>vs.reduce((s,v)=>s+(v.bruto||0),0);
+  const filas=activeBagKeys().map(k=>{ const r=baguettesQuedan(k); return `<tr><td style="font-weight:700;color:var(--crema)">${BAG_NAMES[k]}</td><td style="text-align:center">${bH[k]||0}</td><td style="text-align:center">${bS[k]||0}</td><td style="text-align:center;font-weight:700;color:${r.q!=null&&r.q<5?'#ff7a7a':'var(--dorado-light)'}">${r.q==null?'—':'≈ '+r.q}</td><td style="font-size:12px;color:var(--text3)">${costoEsc(r.lim)}</td></tr>`; }).join('');
+  const prods=INV.filter(p=>prodIsActive(p.id));
+  el.innerHTML=`<div class="card-title"><span class="icon"><svg class="ic"><use href="#i-bag"/></svg></span>Servicio</div>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:8px">
+      <div><div style="font-family:var(--serif);font-size:26px;font-weight:600;color:var(--dorado-light)">${sumaBags(bH)}</div><div style="font-size:12px;color:var(--text2)">baguettes hoy · ${fmtM(dinero(vHoy),0)}</div></div>
+      <div><div style="font-family:var(--serif);font-size:26px;font-weight:600;color:var(--crema)">${sumaBags(bS)}</div><div style="font-size:12px;color:var(--text2)">esta semana (mié–dom) · ${fmtM(dinero(vSem),0)}</div></div>
+    </div>
+    <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Baguette</th><th style="text-align:center">Hoy</th><th style="text-align:center">Semana</th><th style="text-align:center">Quedan</th><th>Se acaba primero</th></tr></thead><tbody>${filas}</tbody></table></div>
+    <div style="font-size:12px;color:var(--text3);margin:6px 0 14px">"Quedan" es aproximado: el stock de cada componente entre su gramaje.</div>
+    <div class="lbl">Inventario de producto final</div>
+    ${prods.map(p=>{ const s=S.inv[p.id]||0, lv=getLevel(s,S.levels); return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)"><span style="color:var(--crema)">${costoEsc(p.n)}</span><span style="white-space:nowrap">${fmtQ(s,p.u)} <span class="tag" style="background:${lv.bg};color:${lv.color};margin-top:0">${lv.lbl}</span></span></div>`; }).join('')||'<div class="empty-note">Sin productos activos.</div>'}`;
+}
+function renderDashProduccion(){
+  const el=document.getElementById('dashProduccion'); if(!el) return;
+  const now=Date.now()+1, sem=inicioSemanaServicio(Date.now()), semAnt=sem-7*864e5;
+  const d=new Date(), mes=new Date(d.getFullYear(),d.getMonth(),1).getTime(), mesAnt=new Date(d.getFullYear(),d.getMonth()-1,1).getTime();
+  const B=(a,b)=>bagsVendidas(ventasEntre(a,b));
+  const s1=B(sem,now), s0=B(semAnt,sem), m1=B(mes,now), m0=B(mesAnt,mes);
+  const tVentas=activeBagKeys().map(k=>`<tr><td style="font-weight:700;color:var(--crema)">${BAG_NAMES[k]}</td><td style="text-align:center">${s1[k]||0}</td><td style="text-align:center;color:var(--text3)">${s0[k]||0}</td><td style="text-align:center">${m1[k]||0}</td><td style="text-align:center;color:var(--text3)">${m0[k]||0}</td></tr>`).join('');
+  // Qué preparar: consumo por día de servicio (últimos 7 días ÷ 5) y cobertura hasta el domingo
+  const dr=diasServicioRestantes();
+  const prod=INV.filter(p=>prodIsActive(p.id)).map(p=>{ const stk=S.inv[p.id]||0, porDia=dailyUse(p.id)*7/5; return {p,stk,porDia,cob:porDia>0?stk/porDia:null,falta:porDia>0?Math.max(0,porDia*dr-stk):0}; })
+    .filter(x=>x.porDia>0).sort((a,b)=>a.cob-b.cob);
+  const tProd=prod.map(x=>`<tr><td style="color:var(--crema)">${costoEsc(x.p.n)}</td><td style="text-align:right">${fmtQ(x.stk,x.p.u)}</td><td style="text-align:right">${fmtQ(x.porDia,x.p.u)}</td><td style="text-align:center;color:${x.cob<dr?'#ff7a7a':'var(--crema)'}">${fmtN(x.cob,1)} d</td><td style="text-align:right;font-weight:700;color:${x.falta>0?'var(--dorado-light)':'var(--text3)'}">${x.falta>0?fmtQ(Math.ceil(x.falta),x.p.u):'—'}</td></tr>`).join('');
+  // Baguettes por día de servicio: promedio de las 4 semanas anteriores
+  const por={}; DIAS_SERV.forEach(w=>por[w]=0);
+  ventasEntre(sem-28*864e5,sem).forEach(v=>{ const w=new Date(v.ts).getDay(); if(por[w]!=null) por[w]+=sumaBags(bagsVendidas([v])); });
+  const mx=Math.max(1,...DIAS_SERV.map(w=>por[w]/4));
+  const barras=DIAS_SERV.map(w=>{ const x=por[w]/4; return `<div style="display:grid;grid-template-columns:40px 1fr 44px;gap:8px;align-items:center;margin:5px 0"><span style="font-size:12.5px;color:var(--text2)">${DIA_N[w]}</span><div style="height:10px;border-radius:5px;background:rgba(236,231,214,.08);overflow:hidden"><div style="height:100%;width:${(x/mx*100).toFixed(0)}%;background:var(--dorado)"></div></div><span style="font-size:12.5px;text-align:right;color:var(--crema)">${fmtN(x,1)}</span></div>`; }).join('');
+  // Ventas por canal esta semana
+  const canal={}; ventasEntre(sem,now).forEach(v=>{ const c=canal[v.plat]||(canal[v.plat]={n:0,m:0}); c.n+=sumaBags(bagsVendidas([v])); c.m+=v.bruto||0; });
+  const plats=getPlatforms(), nomPlat=k=>(plats.find(p=>p.k===k)||{}).n||k||'—';
+  const tCanal=Object.keys(canal).map(k=>`<tr><td style="color:var(--crema)">${costoEsc(nomPlat(k))}</td><td style="text-align:center">${canal[k].n}</td><td style="text-align:right">${fmtM(canal[k].m,0)}</td></tr>`).join('');
+  el.innerHTML=`<div class="card-title"><span class="icon"><svg class="ic"><use href="#i-flame"/></svg></span>Producción · semana de miércoles a domingo</div>
+    <div class="lbl">Baguettes vendidas</div>
+    <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Baguette</th><th style="text-align:center">Semana</th><th style="text-align:center">Sem. ant.</th><th style="text-align:center">Mes</th><th style="text-align:center">Mes ant.</th></tr></thead><tbody>${tVentas}</tbody></table></div>
+    <div class="lbl" style="margin-top:16px">Qué preparar para llegar al domingo (${dr} día${dr>1?'s':''} de servicio)</div>
+    ${tProd?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Producto</th><th style="text-align:right">Stock</th><th style="text-align:right">Por día</th><th style="text-align:center">Alcanza</th><th style="text-align:right">Preparar</th></tr></thead><tbody>${tProd}</tbody></table></div><div style="font-size:12px;color:var(--text3);margin-top:4px">Por día = consumo de los últimos 7 días entre 5 días de servicio.</div>`:'<div class="empty-note">Aún no hay consumo registrado en los últimos 7 días.</div>'}
+    <div class="lbl" style="margin-top:16px">Baguettes por día (promedio de 4 semanas)</div>${barras}
+    <div class="lbl" style="margin-top:16px">Ventas por canal esta semana</div>
+    ${tCanal?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Canal</th><th style="text-align:center">Baguettes</th><th style="text-align:right">Venta</th></tr></thead><tbody>${tCanal}</tbody></table></div>`:'<div class="empty-note">Sin ventas esta semana.</div>'}`;
+}
+
+// ----- Baguettes inactivas: lo que SOLO usan ellas se oculta fuera de Configuración -----
+function soloInactivasSets(){
+  const act=_activeSets(), prod=new Set(), ins=new Set(), G=S.bagGramajes||DEFAULT_BAG_GRAMAJES;
+  const addIns=i=>{ if(!act.ins.has(i)) ins.add(i); };
+  const addProd=id=>{ if(!act.prod.has(id)) prod.add(id); const rk=PROD_TO_RECIPE[id]; if(rk) Object.keys(recipeInsumoNeeds(rk,1)).forEach(addIns); };
+  BAG_ORDER.filter(k=>!bagIsActive(k)).forEach(bk=>(G[bk]||[]).forEach(c=>{
+    if(!c.id||c.id==='nuevo'||PAPAS_COMP_IDS.includes(c.id)) return;
+    if(INV.some(p=>p.id===c.id)) addProd(c.id);
+    else if(INSUMOS.some(p=>p.id===c.id)) addIns(c.id);
+    else if(INSUMOS.some(p=>p.id===c.id+'_raw')) addIns(c.id+'_raw');
+  }));
+  return {prod,ins};
+}
+function _soloInactivas(){ return _oiCache||(_oiCache=soloInactivasSets()); }
+function prodOculto(id){ return _soloInactivas().prod.has(id); }
+function insOculto(id){ return _soloInactivas().ins.has(id); }
+
+// ----- Configuración por categorías: tocas una y se abre; las demás se cierran -----
+const CFG_CATS=[
+  ['Baguettes y recetas',['Baguettes activas','Gramajes por Baguette','Equivalencias','Papas a la francesa']],
+  ['Precios y costos',['Precios y proveedores','Finanzas y alertas']],
+  ['Canales y comisiones',['Precios de venta y comisiones']],
+  ['Empaques',['Empaques']],
+  ['Alertas de stock',['Niveles de Alerta']],
+  ['Datos y respaldo',['Configuración General']],
+  ['Sesión y nube',['Sincronización en la nube']]];
+let _cfgArmado=false, _cfgAbierta=null;
+function armarConfigCategorias(){
+  if(_cfgArmado) return;
+  const inner=document.querySelector('#page-config .inner'); if(!inner) return;
+  const grupos=CFG_CATS.map(([n])=>({n,cards:[]})), otros={n:'Otros',cards:[]};
+  [...inner.children].filter(c=>c.classList.contains('card')).forEach(c=>{
+    const t=(c.querySelector('.card-title')?.textContent||'').trim();
+    const i=CFG_CATS.findIndex(([,ks])=>ks.some(k=>t.startsWith(k)));
+    (i>=0?grupos[i]:otros).cards.push(c);
+  });
+  if(otros.cards.length) grupos.push(otros);
+  grupos.filter(g=>g.cards.length).forEach((g,i)=>{
+    const w=document.createElement('div'); w.className='cfg-grp'; w.dataset.i=i;
+    w.innerHTML=`<button class="cfg-grp-h" onclick="toggleCfgGrp(${i})"><span>${g.n}</span><span class="cfg-grp-c">${g.cards.length}</span></button><div class="cfg-grp-b"></div>`;
+    const b=w.querySelector('.cfg-grp-b'); g.cards.forEach(c=>b.appendChild(c));
+    inner.appendChild(w);
+  });
+  _cfgArmado=true;
+}
+function toggleCfgGrp(i){
+  _cfgAbierta=_cfgAbierta===i?null:i;
+  document.querySelectorAll('#page-config .cfg-grp').forEach(g=>g.classList.toggle('open',+g.dataset.i===_cfgAbierta));
+  document.querySelector(`#page-config .cfg-grp[data-i="${i}"]`)?.scrollIntoView({block:'start',behavior:'smooth'});
+}
 
 // ----- Checklists (fase 2): abre / durante / cierre, con quién y a qué hora; firma por fase -----
 const CHK_FASES={
@@ -4355,7 +4518,10 @@ function filasInsumos(keys,esAndres){
   }).join('');
 }
 function renderCostos(){
-  const el=document.getElementById('costosRoot'); if(!el) return;
+  // En Administración la pantalla de costos vive dentro del Dashboard
+  const enDash=_modo==='admin'&&document.getElementById('page-dash')?.classList.contains('on');
+  const otro=document.getElementById(enDash?'costosRoot':'dashCostosFull'); if(otro) otro.innerHTML='';
+  const el=document.getElementById(enDash?'dashCostosFull':'costosRoot'); if(!el) return;
   const keys=activeBagKeys();
   if(!keys.length){ el.innerHTML='<div class="card"><div class="empty-note">No hay baguettes activas. Actívalas en Configuración.</div></div>'; return; }
   if(!keys.includes(_costoBag)) _costoBag=keys[0];
@@ -4977,7 +5143,7 @@ function renderDashCharts(){
   const el=document.getElementById('dashCharts'); if(!el) return;
   let html='';
   // 1) Distribución de inventario (producto final con stock)
-  const invData=INV.map((p,i)=>({label:p.n,u:p.u,value:S.inv[p.id]||0,color:CHART_COLORS[i%CHART_COLORS.length]})).filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
+  const invData=INV.filter(p=>!prodOculto(p.id)).map((p,i)=>({label:p.n,u:p.u,value:S.inv[p.id]||0,color:CHART_COLORS[i%CHART_COLORS.length]})).filter(d=>d.value>0).sort((a,b)=>b.value-a.value);
   if(invData.length){
     const total=invData.reduce((s,d)=>s+d.value,0);
     html+=`<div style="font-size:12px;letter-spacing:0;text-transform:none;font-weight:600;color:var(--text2);margin-bottom:10px">Distribución de inventario</div>
@@ -5330,6 +5496,7 @@ function setPapasCfg(f,v){
 // CONFIG EDITORS
 // ================================================================
 function renderConfigEditors(){
+  armarConfigCategorias();
   renderBagActiveEditor(); renderPapasEditor(); renderPriceBookEditor(); renderFinEditor();
   const lv=S.levels;
   document.getElementById('cfgCritico').value=lv.critico;
@@ -5941,7 +6108,7 @@ function renderDashSales(){
   <div class="fbar">
     ${chips('canal',[['all','Total']].concat(plats.map(p=>[p.k,p.n,p.color])))}
     ${chips('rango',[['1','Hoy'],['7','7 días'],['30','30 días'],['custom','Personalizado']])}
-    <div class="fsel"><select aria-label="Baguette" onchange="dvSet('bag',this.value)"><option value="all">Todas</option>${BAG_ORDER.map(k=>`<option value="${k}" ${DV.bag===k?'selected':''}>${BAG_NAMES[k]}</option>`).join('')}</select>
+    <div class="fsel"><select aria-label="Baguette" onchange="dvSet('bag',this.value)"><option value="all">Todas</option>${activeBagKeys().map(k=>`<option value="${k}" ${DV.bag===k?'selected':''}>${BAG_NAMES[k]}</option>`).join('')}</select>
     <select aria-label="Turno" onchange="dvSet('turno',this.value)"><option value="all" ${DV.turno==='all'?'selected':''}>Todo el día</option><option value="comida" ${DV.turno==='comida'?'selected':''}>Comida (antes de 5 pm)</option><option value="cena" ${DV.turno==='cena'?'selected':''}>Cena (5 pm en adelante)</option></select></div>
     ${DV.rango==='custom'?`<div class="fdates"><input type="date" aria-label="Desde" value="${DV.from}" onchange="dvSet('from',this.value)"><input type="date" aria-label="Hasta" value="${DV.to}" onchange="dvSet('to',this.value)"></div>`:''}
   </div>`;
