@@ -1291,8 +1291,9 @@ const DEFAULT_PRICES = {
 // RECIPES DATA
 // ================================================================
 function papasIng(ver){
-  const a=[{k:'papas',n:'Papas prefritas congeladas',a:100,u:'g'},{k:'sal',n:'Sal',a:1,u:'g'},{k:'pimienta',n:'Pimienta negra',a:1,u:'g'},{k:'perejil',n:'Perejil picado fino',a:1,u:'g'}];
-  if(ver==='pp') a.push({k:'pulledpork',n:'Pulled pork (producto final)',a:50,u:'g'});
+  const pg=ver==='pp'?200:100, f=pg/100;   // papas con pulled pork: 200 g de papa + 150 g de pulled pork
+  const a=[{k:'papas',n:'Papas prefritas congeladas',a:pg,u:'g'},{k:'sal',n:'Sal',a:f,u:'g'},{k:'pimienta',n:'Pimienta negra',a:f,u:'g'},{k:'perejil',n:'Perejil picado fino',a:f,u:'g'}];
+  if(ver==='pp') a.push({k:'pulledpork',n:'Pulled pork (producto final)',a:150,u:'g'});
   if(ver==='trufa') a.push({k:'aceite_trufa_aroma',n:'Aceite con aroma a trufa',a:15,u:'ml'});
   return a;
 }
@@ -1506,33 +1507,37 @@ caldo:{
     ]
   },
   pulledporkbase:{
-    name:'Pulled Pork (base)',cat:'base',tiempo:'1h 15min',rendPct:.75,invId:'pulledpork',
+    // Receta única de pulled pork (Recetario, costeo y papas con pulled pork). Cantidades por 1 kg de espaldilla.
+    name:'Pulled Pork (base)',cat:'base',tiempo:'2h',rendPct:.75,invId:'pulledpork',
     ing:[
       {k:'espaldilla',n:'Espaldilla de cerdo',a:1000,u:'g'},
-      {k:'aceite_oliva',n:'Aceite de oliva',a:40,u:'ml'},
       {k:'mostaza',n:'Mostaza',a:36,u:'g'},
       {k:'sal',n:'Sal',a:13,u:'g'},
       {k:'pimienta',n:'Pimienta',a:3,u:'g'},
+      {k:'paprika_ahumada',n:'Páprika ahumada',a:3.1,u:'g'},
+      {k:'aceite_oliva',n:'Aceite de oliva (para las verduras)',a:39.8,u:'ml'},
       {k:'cebolla',n:'Cebolla (trozos grandes)',a:180,u:'g'},
       {k:'zanahoria',n:'Zanahoria (trozos grandes)',a:140,u:'g'},
       {k:'apio',n:'Apio (trozos grandes)',a:100,u:'g'},
       {k:'ajo',n:'Ajo',a:10,u:'g'},
       {k:'romero',n:'Romero',a:10,u:'g'},
-      {k:'laurel',n:'Laurel',a:10,u:'g'},
-      {k:'vino_blanco',n:'Vino blanco',a:190,u:'ml'},
+      {k:'laurel',n:'Laurel (5 hojas)',a:1,u:'g'},
+      {k:'vino_blanco',n:'Vino blanco',a:204,u:'ml'},
       {k:'pure_tomate',n:'Puré de tomate',a:110,u:'ml'},
-      {k:'caldo_pollo',n:'Caldo de pollo',a:760,u:'ml'},
+      {k:'caldo_pollo',n:'Caldo de pollo',a:459,u:'ml'},
       {k:'vinagre_manzana',n:'Vinagre de manzana',a:70,u:'ml'},
-      {k:'azucar_morena',n:'Azúcar morena',a:90,u:'g'},
+      {k:'azucar_morena',n:'Azúcar morena',a:79.6,u:'g'},
     ],
     steps:[
-      {t:'Marinar la espaldilla',x:'Combinar <span class="sq">{mostaza} de mostaza</span> + <span class="sq">{sal} de sal</span>. Embarrar por TODA la espaldilla de <span class="sq">{espaldilla}</span> incluyendo los lados.',timer:null,ck:null,tip:'La mostaza actúa como binding agent — ayuda a que se forme una costra de sellado excepcional. No la saltes.'},
-      {t:'Sellar la espaldilla',x:'Calentar olla de presión a fuego ALTO 5 minutos. Agregar <span class="sq">{aceite_oliva} de aceite</span> y sellar la espaldilla por TODOS los lados hasta dorado profundo.',timer:15,ck:'Color café muy oscuro, casi negro en algunas partes. Costra pronunciada por todos los lados.',tip:'Este sellado es lo que da el sabor ahumado y profundo al pulled pork. No escatimes tiempo aquí.'},
-      {t:'Dorar verduras',x:'Agregar <span class="sq">{cebolla} cebolla</span>, <span class="sq">{zanahoria} zanahoria</span> y <span class="sq">{apio} apio</span> en trozos grandes. Cocinar hasta dorado profundo — buscar ligero quemado en las cebollas.',timer:10,ck:'Cebollas con ligero quemado en las puntas = profundidad de sabor. Es intencional.',tip:null},
-      {t:'Agregar puré y desglasar',x:'Agregar <span class="sq">{pure_tomate} de puré de tomate</span>, cocinar 1 minuto. Agregar <span class="sq">{vino_blanco} de vino blanco</span> + <span class="sq">{caldo_pollo} de caldo</span>. Desglasar.',timer:2,ck:null,tip:null},
-      {t:'Acidez y dulzor',x:'Agregar <span class="sq">{vinagre_manzana} de vinagre de manzana</span> y <span class="sq">{azucar_morena} de azúcar morena</span>. Revolver.',timer:null,ck:null,tip:'El balance vinagre-azúcar es lo que da el perfil de BBQ. No omitas ninguno de los dos.'},
-      {t:'Cocinar a presión',x:'Cerrar tapa de olla de presión. Cocinar a fuego MEDIO. Cuando empiece a sacar vapor fuerte, bajar a fuego BAJO.',timer:60,ck:null,tip:'⚠️ NUNCA fuerces la tapa mientras salga vapor. La presión puede causar quemaduras graves.'},
-      {t:'Despresurizar y deshebradar',x:'Cuando NO salga vapor ni ruido y la tapa NO tenga resistencia: abrir. Retirar la carne y deshebrar con dos tenedores.',timer:null,ck:'La carne debe deshebrar fácilmente sin esfuerzo. Si hay resistencia, faltó tiempo — cierra y cocina 15 min más.',tip:'Mezcla la carne con el caldo concentrado que quedó en la olla para mantenerla jugosa y con más sabor.'},
+      {t:'Marinar la espaldilla',x:'Mezclar <span class="sq">{mostaza} de mostaza</span>, <span class="sq">{sal} de sal</span>, <span class="sq">{pimienta} de pimienta</span> y <span class="sq">{paprika_ahumada} de páprika ahumada</span>. Embarrar por TODA la espaldilla de <span class="sq">{espaldilla}</span>, incluyendo los lados. Dejar marinar 30 minutos.',timer:30,ck:null,tip:'La mostaza actúa como binding agent: ayuda a que se forme la costra al sellar. No la saltes.'},
+      {t:'Sellar en el asador',x:'Sellar la espaldilla en el asador de 5 a 10 minutos por cada lado, según la intensidad del calor, hasta dorar bien TODOS los lados.',timer:null,ck:'Costra pronunciada y color café muy oscuro por todos los lados.',tip:'El asador es lo que le da el sabor ahumado al pulled pork. No escatimes tiempo aquí.'},
+      {t:'Reservar el cerdo',x:'Retirar la espaldilla sellada y reservarla mientras se preparan las verduras.',timer:null,ck:null,tip:null},
+      {t:'Dorar verduras',x:'En la olla de presión, calentar <span class="sq">{aceite_oliva} de aceite de oliva</span>. Agregar <span class="sq">{cebolla} cebolla</span>, <span class="sq">{zanahoria} zanahoria</span> y <span class="sq">{apio} apio</span> en trozos grandes. Cocinar hasta dorado profundo; buscar un ligero quemado en las cebollas.',timer:10,ck:'Cebollas con ligero quemado en las puntas = profundidad de sabor. Es intencional.',tip:null},
+      {t:'Agregar el ajo',x:'Agregar <span class="sq">{ajo} de ajo</span> y cocinar 1 minuto, sin dejar que se queme.',timer:1,ck:'Aromático y apenas dorado. Si se oscurece, amarga.',tip:null},
+      {t:'Agregar puré y desglasar',x:'Agregar <span class="sq">{pure_tomate} de puré de tomate</span> y cocinar 1 minuto. Agregar <span class="sq">{vino_blanco} de vino blanco</span> + <span class="sq">{caldo_pollo} de caldo de pollo</span>. Desglasar raspando el fondo.',timer:2,ck:null,tip:null},
+      {t:'Acidez, dulzor y hierbas',x:'Agregar <span class="sq">{vinagre_manzana} de vinagre de manzana</span>, <span class="sq">{azucar_morena} de azúcar morena</span>, <span class="sq">{romero} de romero</span> y <span class="sq">{laurel} de laurel (5 hojas)</span>. Revolver.',timer:null,ck:null,tip:'El balance vinagre-azúcar es lo que da el perfil de BBQ. No omitas ninguno de los dos.'},
+      {t:'Regresar el cerdo y cocinar a presión',x:'Regresar la espaldilla reservada a la olla. Cerrar la tapa y cocinar a fuego MEDIO. Cuando empiece a sacar vapor fuerte, bajar a fuego BAJO.',timer:60,ck:null,tip:'⚠️ NUNCA fuerces la tapa mientras salga vapor. La presión puede causar quemaduras graves.'},
+      {t:'Despresurizar y deshebrar',x:'Cuando NO salga vapor ni ruido y la tapa NO tenga resistencia: abrir. Retirar la carne, quitar las hojas de laurel y el romero, y deshebrar con dos tenedores.',timer:null,ck:'La carne debe deshebrar fácilmente sin esfuerzo. Si hay resistencia, faltó tiempo: cierra y cocina 15 min más.',tip:'Mezcla la carne con el caldo concentrado que quedó en la olla para mantenerla jugosa y con más sabor.'},
     ]
   },
   echalote:{
@@ -1735,6 +1740,7 @@ const INSUMOS = [
   {id:'aceite_trufa_aroma',n:'Aceite aroma a trufa',cat:'Abarrotes',precio:600},
   {id:'sal',n:'Sal',cat:'Abarrotes',precio:18.41},
   {id:'pimienta',n:'Pimienta Negra',cat:'Abarrotes',precio:279},
+  {id:'paprika_ahumada',n:'Páprika Ahumada',cat:'Abarrotes',precio:416.67},   // $50 por 120 g
   {id:'harina',n:'Harina',cat:'Abarrotes',precio:14.32},
   {id:'vinagre_bals',n:'Vinagre Balsámico',cat:'Abarrotes',precio:92.07},
   {id:'vinagre_arroz',n:'Vinagre de Arroz',cat:'Abarrotes',precio:195.41},
@@ -1789,6 +1795,8 @@ Object.entries(PRICE_ALIAS).forEach(([k,v])=>{
 
 
 // Ingredientes que se descuentan de insumos al terminar cada receta
+// Convierte la receta del Recetario en proporciones para el costeo (por 1 kg de la pieza base): una sola fuente
+function recetaARatios(rk,alias){ const ing=R[rk].ing, base=ing[0].a||1000; return ing.map(i=>({id:(alias&&alias[i.k])||i.k,ratio:i.a/base})); }
 const RECIPE_INSUMOS = {
   aupoivre: [{id:'mantequilla',ratio:0.14},{id:'aceite_oliva',ratio:0.03},{id:'echalote_raw',ratio:0.34},{id:'ajo',ratio:0.019},{id:'vino_blanco',ratio:0.194},{id:'caldo_pollo',ratio:0.31},{id:'soya',ratio:0.029},{id:'crema_lyncott',ratio:0.267},{id:'pimienta',ratio:0.0034},{id:'sal',ratio:0.0034}],
   salsavodka: [{id:'aceite_oliva',ratio:0.0773},{id:'cebolla_raw',ratio:0.192},{id:'jitomate_cherry',ratio:0.6},{id:'ajo',ratio:0.014},{id:'pure_tomate',ratio:0.24},{id:'crema_lyncott',ratio:0.144},{id:'albahaca',ratio:0.004},{id:'sal',ratio:0.006},{id:'pimienta',ratio:0.002},{id:'vodka',ratio:0.065}],
@@ -1798,7 +1806,7 @@ const RECIPE_INSUMOS = {
   dip: [{id:'picana',ratio:1.0},{id:'sal',ratio:0.012},{id:'pimienta',ratio:0.003}],
   entrecot: [{id:'vacio_raw',ratio:1.0},{id:'sal',ratio:0.012},{id:'pimienta',ratio:0.003}],
   poivre: [{id:'vacio_raw',ratio:1.0},{id:'sal',ratio:0.012},{id:'pimienta',ratio:0.003}],
-  pulledporkbase: [{id:'espaldilla',ratio:1.0},{id:'mostaza',ratio:0.036},{id:'sal',ratio:0.0135},{id:'pimienta',ratio:0.0027},{id:'aceite_oliva',ratio:0.03},{id:'cebolla_raw',ratio:0.18},{id:'zanahoria',ratio:0.144},{id:'apio',ratio:0.1035},{id:'ajo',ratio:0.0144},{id:'romero',ratio:0.00135},{id:'laurel',ratio:0.0009},{id:'vino_blanco',ratio:0.189},{id:'pure_tomate',ratio:0.1125},{id:'caldo_pollo',ratio:0.756},{id:'vinagre_manzana',ratio:0.072},{id:'azucar_morena',ratio:0.09}],
+  pulledporkbase: recetaARatios('pulledporkbase',{cebolla:'cebolla_raw'}),   // sale de la receta del Recetario
   mayoajneg: [{id:'mayonesa',ratio:0.945},{id:'ajo_negro',ratio:0.03},{id:'vinagre_arroz',ratio:0.02},{id:'sal',ratio:0.005}],
   mayotrufa: [{id:'mayonesa',ratio:0.795},{id:'miel',ratio:0.049},{id:'aceite_trufa',ratio:0.116},{id:'sal',ratio:0.022},{id:'vinagre_arroz',ratio:0.033}],
   mayochipotle: [{id:'mayonesa',ratio:0.79},{id:'chipotle',ratio:0.08},{id:'salsa_inglesa',ratio:0.02},{id:'vinagre_arroz',ratio:0.05},{id:'ajo',ratio:0.06},{id:'sal',ratio:0.003}],
@@ -1893,7 +1901,9 @@ const BAG_ORDER=['entrecot','poivre','vodka','dip','pulledpork'];
 const DEFAULT_BAG_ACTIVE={entrecot:true,poivre:true,vodka:true,dip:false,pulledpork:false};
 function bagIsActive(k){const a=S.bagActive||{}; return a[k]!==undefined?!!a[k]:!!DEFAULT_BAG_ACTIVE[k];}
 function activeBagKeys(){return BAG_ORDER.filter(bagIsActive);}
-const DEFAULT_PAPAS_CFG={gramos:100,rubG:1,trufaMl:15,ppG:50,litros:3.5,kgCambio:3.5,precioBase:55,precioPP:75,precioTrufa:70};
+const DEFAULT_PAPAS_CFG={gramos:100,rubG:1,trufaMl:15,ppG:150,ppPapasG:200,litros:3.5,kgCambio:3.5,precioBase:55,precioPP:95,precioPP_rappi:115,precioPP_uber:115,precioPP_didi:115,precioTrufa:70};
+// Papas con pulled pork: precio por canal (si un canal no tiene precio propio, usa el de Directo)
+function papasPrecioPP(plat){ const c=papasCfg(), v=c['precioPP_'+plat]; return plat&&plat!=='base'&&v!=null?v:c.precioPP; }
 function papasCfg(){return {...DEFAULT_PAPAS_CFG,...(S.papasCfg||{})};}
 const PAPAS_COMP_IDS=['papas_caja','papas_top'];
 const PAPAS_VER={papas:'clasica',papaspp:'pp',papastrufa:'trufa'};
@@ -1905,7 +1915,7 @@ function papasNeeds(g,ver){
   return o;
 }
 function papasCostFromNeeds(n){let s=0;Object.keys(n).forEach(id=>{ if(INSUMOS.some(x=>x.id===id)) s+=n[id]*insFifoPrecio(id)/pdiv(id); });return s;}
-function papasPortionCost(ver,g){const c=papasCfg(); g=g||c.gramos; let cost=papasCostFromNeeds(papasNeeds(g,ver)); if(ver==='pp') cost+=c.ppG*(g/c.gramos)*costPerGProd('pulledpork'); return cost;}
+function papasPortionCost(ver,g){const c=papasCfg(); g=g||(ver==='pp'?c.ppPapasG:c.gramos); let cost=papasCostFromNeeds(papasNeeds(g,ver)); if(ver==='pp') cost+=c.ppG*(g/(c.ppPapasG||1))*costPerGProd('pulledpork'); return cost;}
 function papasOilCost(g){const c=papasCfg(); g=g||c.gramos; return (c.litros/(c.kgCambio||1))*g*insFifoPrecio('aceite_freir')/pdiv('aceite_freir');}
 function consumePapas(g,ver,touched){
   const n=papasNeeds(g,ver);
@@ -2159,6 +2169,8 @@ async function initSB(){
     if(_cloudFinVer<4){ applyPriceBookV4(); saveS(); _cloudFinVer=4; pushPriceBook(); }
     // Libro de precios v5: mantequilla y papas confirmadas (respeta priceMeta 'man'/'usr' de la nube)
     if(_cloudFinVer<5){ applyPriceBookV5(); saveS(); _cloudFinVer=5; pushPriceBook(); }
+    // v6: pulled pork nuevo y papas con pulled pork (200 g + 150 g, precio por canal)
+    if(_cloudFinVer<6){ applyPriceBookV6(); saveS(); _cloudFinVer=6; pushPriceBook(); }
     // Ventas — resiliente si la tabla no existe
     try{
       const {data:vts,error:eV}=await sb.from('fondo_ventas').select('*').order('created_at',{ascending:false}).limit(500);
@@ -2248,6 +2260,7 @@ function loadS(){
   if((S.migU||0)<3){ migrateGramajesV3(); S.migU=3; try{ saveS(); }catch(e){} }
   if((S.migU||0)<4){ applyPriceBookV4(); try{ saveS(); }catch(e){} }
   if((S.migU||0)<5){ applyPriceBookV5(); try{ saveS(); }catch(e){} }
+  if((S.migU||0)<6){ applyPriceBookV6(); try{ saveS(); }catch(e){} }
 }
 
 async function saveS(){
@@ -4737,7 +4750,7 @@ function ventaItemPrice(it){
   if(it.tipo==='bag') return getSalePrice(it.k,_ventaPlat);
   const c=papasCfg();
   if(it.k==='papas') return c.precioBase;
-  if(it.k==='papaspp') return c.precioPP;
+  if(it.k==='papaspp') return papasPrecioPP(_ventaPlat);
   if(it.k==='papastrufa') return c.precioTrufa;
   return PAPAS_PRICE.extraSalsa;
 }
@@ -4830,7 +4843,7 @@ async function confirmVenta(){
   });
   Object.keys(PAPAS_VER).forEach(k=>{
     const q=_ventaQty[k]||0; if(q<=0) return;
-    items[k]=q; consumePapas(pcfg.gramos*q,PAPAS_VER[k],touched);
+    items[k]=q; consumePapas((k==='papaspp'?pcfg.ppPapasG:pcfg.gramos)*q,PAPAS_VER[k],touched);
     if(k==='papaspp'){ S.inv.pulledpork=Math.max(0,(S.inv.pulledpork||0)-pcfg.ppG*q); consumirProdLote('pulledpork',pcfg.ppG*q); touched.inv.add('pulledpork'); }
   });
   if(_ventaQty['papasextra']>0) items['papasextra']=_ventaQty['papasextra'];
@@ -5473,12 +5486,16 @@ function setBagActive(k,v){
 const PAPAS_FIELDS=[
   ['gramos','Gramos de papa por porción','g'],
   ['rubG','Rub: gramos de cada uno (sal, pimienta, perejil)','g'],
-  ['ppG','Pulled pork por porción (versión con pulled pork)','g'],
+  ['ppPapasG','Papas con pulled pork: gramos de papa','g'],
+  ['ppG','Papas con pulled pork: gramos de pulled pork','g'],
   ['trufaMl','Aceite con aroma a trufa por porción','ml'],
   ['litros','Aceite en la freidora','L'],
   ['kgCambio','Kilos de papa que se fríen antes de cambiar el aceite','kg'],
   ['precioBase','Precio · papas clásicas','$'],
-  ['precioPP','Precio · papas con pulled pork','$'],
+  ['precioPP','Precio · papas con pulled pork (Directo)','$'],
+  ['precioPP_rappi','Precio · papas con pulled pork (Rappi)','$'],
+  ['precioPP_uber','Precio · papas con pulled pork (Uber Eats)','$'],
+  ['precioPP_didi','Precio · papas con pulled pork (Didi)','$'],
   ['precioTrufa','Precio · papas con trufa','$'],
 ];
 function renderPapasEditor(){
@@ -5581,6 +5598,7 @@ async function saveSB(){
 // [precio por kg / L / pza, fuente, tienda]
 // fuente: fr = lista Fruveca · usr = dato tuyo · web = reporte en línea (sin confirmar) · prev = costeo anterior
 const PRICE_BOOK = {
+  paprika_ahumada:[416.67,'usr',''],   // $50 por 120 g (dato de Andres)
   cebolla_raw:[36,'fr','Fruveca'], cebolla_morada:[35,'fr','Fruveca'], echalote_raw:[128,'fr','Fruveca'],
   ajo:[75,'fr','Fruveca'], ajo_negro:[2000,'fr','Fruveca'], zanahoria:[15,'fr','Fruveca'], apio:[17.5,'fr','Fruveca'],
   arugula:[106,'fr','Fruveca'], albahaca:[110,'fr','Fruveca'], perejil:[57.5,'fr','Fruveca'], eneldo:[210,'fr','Fruveca'],
@@ -5655,6 +5673,15 @@ function applyPriceBookV5(){
   if(S.papasCfg&&S.papasCfg.kgCambio===1.5) S.papasCfg={...S.papasCfg,kgCambio:3.5};
   S.fin={...finCfg(),ver:5};
   S.migU=5;
+}
+// v6: papas con pulled pork pasan a 200 g de papa + 150 g de pulled pork y $95 Directo / $115 apps. Respeta lo editado.
+function applyPriceBookV6(){
+  if(S.papasCfg){
+    if(S.papasCfg.ppG===50) S.papasCfg.ppG=150;
+    if(S.papasCfg.precioPP===75) S.papasCfg.precioPP=95;
+  }
+  S.fin={...finCfg(),ver:6};
+  S.migU=6;
 }
 async function pushPriceBook(){
   try{ await savePricesToDB(); }catch(e){}
@@ -5762,6 +5789,8 @@ function papasExtraFin(ver){
   return {precio,costo,util:precio-costo,mg:precio>0?(precio-costo)/precio*100:0};
 }
 function papasIncluidasCost(){ return papasPortionCost('clasica'); }
+// Papas con pulled pork por canal: utilidad neta = precio − comisión del canal − costo (incluye su caja)
+function papasPPCanales(){ const costo=papasPortionCost('pp')+empaqueCostPapas(); return getPlatforms().map(pl=>{ const precio=papasPrecioPP(pl.k), cm=precio*getCommission(pl.k), util=precio-cm-costo; return {n:pl.n,precio,cm,costo,util,mg:precio>0?util/precio*100:0}; }); }
 function papasSummaryHtml(){
   const c=papasCfg(); const oilMl=(c.litros/(c.kgCambio||1))*c.gramos;
   const row=(n,ver)=>{ const x=papasExtraFin(ver); return `<div style="padding:8px 0;border-top:1px solid var(--border)"><div style="display:flex;justify-content:space-between"><span style="color:var(--crema);font-weight:600">${n}</span><b style="color:${marginColor(x.mg)}">${fmtM(x.util,2)}</b></div><div style="font-size:12px;color:var(--text3)">precio ${fmtM(x.precio,0)} · costo ${fmtM(x.costo,2)} (incluye caja propia) · margen ${x.mg.toFixed(0)}%</div></div>`; };
@@ -5769,7 +5798,7 @@ function papasSummaryHtml(){
     <div style="font-weight:700;color:var(--crema);margin-bottom:4px">Papas incluidas · ${fmtQ(c.gramos,'g')} por baguette</div>
     <div>Costo ${fmtM(papasIncluidasCost(),2)}, ya sumado al costo de cada baguette. Van dentro de la caja de la baguette, sin bolsita.</div>
     <div style="font-weight:700;color:var(--crema);margin:12px 0 2px">Papas extra · producto aparte (utilidad por orden)</div>
-    ${row('Clásicas','clasica')}${row('Con pulled pork','pp')}${row('Con trufa','trufa')}
+    ${row('Clásicas','clasica')}${row('Con pulled pork','pp')}<div style="font-size:12px;color:var(--text3);padding:2px 0 6px">Por canal (neta, con comisión): ${papasPPCanales().map(x=>`${x.n} ${fmtM(x.precio,0)} → <b style="color:${marginColor(x.mg)}">${fmtM(x.util,2)}</b> (${x.mg.toFixed(0)}%)`).join(' · ')}</div>${row('Con trufa','trufa')}
     <div style="margin-top:8px;font-size:12px;color:var(--text3)">El aceite de la freidora cuesta ${fmtM(papasOilCost(),2)} por porción (${fmtN(c.litros,1)} L, cambio cada ${fmtN(c.kgCambio,1)} kg, ${fmtN(oilMl,0)} ml por porción).</div></div>`;
 }
 
