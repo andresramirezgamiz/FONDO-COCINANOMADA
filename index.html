@@ -4605,6 +4605,7 @@ function renderCostos(){
       <td style="text-align:right;color:${marginColor(x.mg)}">${x.mg.toFixed(0)}%</td></tr>`; }).join('')}
     </tbody></table></div>
   </div>
+  ${papasCostosCard(esAndres,bru)}
   <div class="card">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-leaf"/></svg></span>Precios de insumos</div>
     <p style="font-size:12.5px;color:var(--text2);margin:-2px 0 6px;line-height:1.5">Orden de uso: <b>manual</b> (lo fijas tú, con nota) › <b>real</b> (lote FIFO más viejo con stock) › <b>referencia</b>. ${esAndres?'Tú editas los precios manuales.':'Solo Andres edita los precios manuales.'}</p>
@@ -4612,6 +4613,40 @@ function renderCostos(){
   </div>`;
 }
 function setCostoBag(k){ _costoBag=k; renderCostos(); }
+// ----- Papas a la francesa en Costos: costo por insumo, precio y utilidad por canal -----
+let _costoPapas='pp';
+const PAPAS_NOMBRES={clasica:'Clásicas',pp:'Con pulled pork',trufa:'Con trufa'};
+function papasBreakdown(ver){
+  const c=papasCfg(), g=ver==='pp'?c.ppPapasG:c.gramos, n=papasNeeds(g,ver), rows=[];
+  Object.keys(n).forEach(id=>{ if(!INSUMOS.some(x=>x.id===id)) return; rows.push({n:insName(id),det:fmtQ(n[id],unitOfIns(id)),cost:n[id]*insFifoPrecio(id)/pdiv(id)}); });
+  if(ver==='pp') rows.push({n:'Pulled pork',det:fmtQ(c.ppG,'g'),cost:c.ppG*costPerGProd('pulledpork')});
+  rows.push({n:'Empaque',det:'caja y bolsa de la orden',cost:empaqueCostPapas()});
+  return rows;
+}
+function setCostoPapasVer(v){ _costoPapas=v; renderCostos(); }
+function setPapasCostos(f,v){ if(!puedeEditarCostos()) return renderCostos(); setPapasCfg(f,v); renderCostos(); }
+function papasCostosCard(esAndres,bru){
+  const ver=_costoPapas, c=papasCfg(), rows=papasBreakdown(ver), total=rows.reduce((s,r)=>s+r.cost,0), mx=Math.max(...rows.map(r=>r.cost),1);
+  const dis=esAndres?'':'disabled';
+  const precioDe=pl=>ver==='pp'?papasPrecioPP(pl):(ver==='trufa'?c.precioTrufa:c.precioBase);
+  const campo=pl=>ver==='pp'?(pl==='base'?'precioPP':'precioPP_'+pl):(ver==='trufa'?'precioTrufa':'precioBase');
+  return `<div class="card">
+    <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-coin"/></svg></span>Papas a la francesa</div>
+    <div class="seg" role="group" aria-label="Versión de papas" style="margin-bottom:12px">${Object.keys(PAPAS_NOMBRES).map(v=>`<button class="${v===ver?'on':''}" onclick="setCostoPapasVer('${v}')">${PAPAS_NOMBRES[v]}</button>`).join('')}</div>
+    <div style="font-family:var(--serif);font-size:26px;font-weight:600;color:var(--dorado-light)">${fmtM(total,2)} <span style="font-size:12px;color:var(--text3);font-family:inherit;font-weight:400">costo por orden (${fmtQ(ver==='pp'?c.ppPapasG:c.gramos,'g')} de papa${ver==='pp'?' + '+fmtQ(c.ppG,'g')+' de pulled pork':''})</span></div>
+    ${rows.map(r=>`<div class="cost-line"><div><span style="color:var(--crema);font-weight:600">${costoEsc(r.n)}</span><div style="font-size:11.5px;color:var(--text3)">${costoEsc(r.det)}</div></div><div style="font-weight:700;color:var(--crema)">${fmtM(r.cost,2)}</div></div>`).join('')}
+    <div style="font-size:12px;color:var(--text3);margin:10px 0 4px">${bru?'Bruta = precio − costo.':'Neta = precio − costo − comisión del canal.'}</div>
+    <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Canal</th><th>Precio venta</th><th>Comisión</th><th style="text-align:right">${bru?'Utilidad bruta':'Utilidad neta'}</th><th style="text-align:right">Margen</th></tr></thead><tbody>
+    ${getPlatforms().map(pl=>{ const pr=precioDe(pl.k), cm=bru?0:pr*getCommission(pl.k), ut=pr-cm-total, mg=pr>0?ut/pr*100:0; const editable=ver==='pp'||pl.k==='base';
+      return `<tr><td style="font-weight:700;color:var(--crema);white-space:nowrap">${costoEsc(pl.n)}</td>
+      <td>${editable?`<input type="number" inputmode="decimal" value="${pr}" onchange="setPapasCostos('${campo(pl.k)}',this.value)" ${dis} style="width:80px">`:fmtM(pr,0)}</td>
+      <td>${Math.round(getCommission(pl.k)*100)}%</td>
+      <td style="text-align:right;font-weight:700;color:${ut>=0?marginColor(mg):'#ff7a7a'}">${fmtM(ut,2)}</td>
+      <td style="text-align:right;color:${marginColor(mg)}">${mg.toFixed(0)}%</td></tr>`; }).join('')}
+    </tbody></table></div>
+    <div style="font-size:12px;color:var(--text3);margin-top:8px">${ver==='pp'?'Cada canal tiene su precio.':'El precio es el mismo en todos los canales; se edita en Directo.'} Gramos, rub y freidora: Configuración → Baguettes y recetas → Papas a la francesa. Aceite de la freidora ya incluido: ${fmtM(papasOilCost(ver==='pp'?c.ppPapasG:c.gramos),2)}.</div>
+  </div>`;
+}
 function setCostoPrecioVenta(k,pl,val){ saveSalePriceField(k,pl,val); renderCostos(); }
 async function guardarPrecioManualUI(id){
   const p=parseFloat(document.getElementById('pm_'+id)?.value);
@@ -5547,8 +5582,10 @@ function renderPapasEditor(){
   const el=document.getElementById('papasEditor'); if(!el) return;
   const c=papasCfg();
   el.innerHTML=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`+PAPAS_FIELDS.map(([f,l,u])=>`<div class="inp-group" style="margin-bottom:4px"><label class="lbl">${l} (${u})</label><input type="number" step="any" inputmode="decimal" value="${c[f]}" oninput="setPapasCfg('${f}',this.value)"></div>`).join('')+`</div><div id="papasSummary" style="margin-top:12px">${papasSummaryHtml()}</div>`;
+  bloquearSiNoAndres(el);
 }
 function setPapasCfg(f,v){
+  if(S.activeUser!=='Andres') return;
   S.papasCfg={...(S.papasCfg||{}),[f]:parseFloat(v)||0};
   saveS(); saveCfgToDB('papasCfg',S.papasCfg);
   const s=document.getElementById('papasSummary'); if(s) s.innerHTML=papasSummaryHtml();
