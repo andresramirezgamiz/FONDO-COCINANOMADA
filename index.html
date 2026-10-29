@@ -1294,7 +1294,8 @@ function papasIng(ver){
   const pg=ver==='pp'?200:100, f=pg/100;   // papas con pulled pork: 200 g de papa + 150 g de pulled pork
   const a=[{k:'papas',n:'Papas prefritas congeladas',a:pg,u:'g'},{k:'sal',n:'Sal',a:f,u:'g'},{k:'pimienta',n:'Pimienta negra',a:f,u:'g'},{k:'perejil',n:'Perejil picado fino',a:f,u:'g'}];
   if(ver==='pp') a.push({k:'pulledpork',n:'Pulled pork (producto final)',a:150,u:'g'});
-  if(ver==='trufa') a.push({k:'aceite_trufa_aroma',n:'Aceite con aroma a trufa',a:15,u:'ml'});
+  if(ver==='parm'||ver==='parmtrufa') a.push({k:'queso_parm',n:'Queso parmesano rallado',a:15,u:'g'});
+  if(ver==='trufa'||ver==='parmtrufa') a.push({k:'aceite_trufa_aroma',n:'Aceite con aroma a trufa',a:15,u:'ml'});
   return a;
 }
 function papasSteps(ver){
@@ -1305,14 +1306,17 @@ function papasSteps(ver){
     {t:'Escurrir y sazonar',x:'Escurre bien y pasa las papas a un bowl. Espolvorea el rub de inmediato, mientras están calientes.',timer:null,ck:null,tip:null},
   ];
   if(ver==='pp') st.push({t:'Pulled pork encima',x:'Coloca {pulledpork} de pulled pork caliente sobre las papas.',timer:null,ck:null,tip:null});
-  if(ver==='trufa') st.push({t:'Aceite de trufa',x:'Rocía {aceite_trufa_aroma} de aceite con aroma a trufa sobre las papas calientes.',timer:null,ck:null,tip:null});
+  if(ver==='parm'||ver==='parmtrufa') st.push({t:'Parmesano',x:'Espolvorea {queso_parm} de queso parmesano rallado sobre las papas calientes, junto con el rub.',timer:null,ck:null,tip:null});
+  if(ver==='trufa'||ver==='parmtrufa') st.push({t:'Aceite de trufa',x:'Rocía {aceite_trufa_aroma} de aceite con aroma a trufa sobre las papas calientes.',timer:null,ck:null,tip:null});
   st.push({t:'Servir',x:'Pasa las papas a su caja y entrégalas de inmediato: el crunch dura poco.',timer:null,ck:null,tip:null});
   return st;
 }
 const R = {
   papasclasicas:{name:'Papas a la francesa (clásicas)',cat:'papas',tiempo:'10 min',rendPct:1,invId:null,noInv:true,ing:papasIng(),steps:papasSteps()},
-  papaspp:{name:'Papas con Pulled Pork',cat:'papas',tiempo:'10 min',rendPct:1,invId:null,noInv:true,ing:papasIng('pp'),steps:papasSteps('pp')},
-  papastrufa:{name:'Papas con Aceite de Trufa',cat:'papas',tiempo:'10 min',rendPct:1,invId:null,noInv:true,ing:papasIng('trufa'),steps:papasSteps('trufa')},
+  papasparm:{name:'Papas parmesano y perejil',cat:'papas',tiempo:'10 min',rendPct:1,invId:null,noInv:true,ing:papasIng('parm'),steps:papasSteps('parm')},
+  papasparmtrufa:{name:'Papas parmesano y perejil trufadas',cat:'papas',tiempo:'10 min',rendPct:1,invId:null,noInv:true,ing:papasIng('parmtrufa'),steps:papasSteps('parmtrufa')},
+  papaspp:{name:'Papas Fondo (con pulled pork)',cat:'papas',tiempo:'10 min',rendPct:1,invId:null,noInv:true,ing:papasIng('pp'),steps:papasSteps('pp')},
+  papastrufa:{name:'Papas clásicas trufadas (aceite de trufa)',cat:'papas',tiempo:'10 min',rendPct:1,invId:null,noInv:true,ing:papasIng('trufa'),steps:papasSteps('trufa')},
   dip:{
     name:'DIP — Picaña Sous Vide',cat:'proteina',tiempo:'6h 30min',rendPct:.88,invId:'picana',
     ing:[
@@ -1944,17 +1948,18 @@ const BAG_ORDER=['entrecot','poivre','vodka','dip','pulledpork'];
 const DEFAULT_BAG_ACTIVE={entrecot:true,poivre:true,vodka:true,dip:false,pulledpork:false};
 function bagIsActive(k){const a=S.bagActive||{}; return a[k]!==undefined?!!a[k]:!!DEFAULT_BAG_ACTIVE[k];}
 function activeBagKeys(){return BAG_ORDER.filter(bagIsActive);}
-const DEFAULT_PAPAS_CFG={gramos:100,rubG:1,trufaMl:15,ppG:150,ppPapasG:200,litros:3.5,kgCambio:3.5,precioBase:55,precioPP:95,precioPP_rappi:115,precioPP_uber:115,precioPP_didi:115,precioTrufa:70};
+const DEFAULT_PAPAS_CFG={gramos:100,rubG:1,trufaMl:15,ppG:150,ppPapasG:200,litros:3.5,kgCambio:3.5,precioBase:55,precioPP:95,precioPP_rappi:115,precioPP_uber:115,precioPP_didi:115,precioTrufa:70,parmG:15,precioParm:65,precioParmTrufa:80};
 // Papas con pulled pork: precio por canal (si un canal no tiene precio propio, usa el de Directo)
 function papasPrecioPP(plat){ const c=papasCfg(), v=c['precioPP_'+plat]; return plat&&plat!=='base'&&v!=null?v:c.precioPP; }
 function papasCfg(){return {...DEFAULT_PAPAS_CFG,...(S.papasCfg||{})};}
 const PAPAS_COMP_IDS=['papas_caja','papas_top'];
-const PAPAS_VER={papas:'clasica',papaspp:'pp',papastrufa:'trufa'};
+const PAPAS_VER={papas:'clasica',papastrufa:'trufa',papasparm:'parm',papasparmtrufa:'parmtrufa',papaspp:'pp'};
 // Insumos que consumen g gramos de papa (rub + aceite de la freidora + aceite de trufa)
 function papasNeeds(g,ver){
   const c=papasCfg(); const f=g/(c.gramos||100);
   const o={papas:g,sal:c.rubG*f,pimienta:c.rubG*f,perejil:c.rubG*f,aceite_freir:(c.litros/(c.kgCambio||1))*g};
-  if(ver==='trufa') o.aceite_trufa_aroma=c.trufaMl*f;
+  if(ver==='parm'||ver==='parmtrufa') o.queso_parm=c.parmG*f;
+  if(ver==='trufa'||ver==='parmtrufa') o.aceite_trufa_aroma=c.trufaMl*f;
   return o;
 }
 function papasCostFromNeeds(n){let s=0;Object.keys(n).forEach(id=>{ if(INSUMOS.some(x=>x.id===id)) s+=n[id]*insFifoPrecio(id)/pdiv(id); });return s;}
@@ -1982,7 +1987,7 @@ function activeSets(){
     else if(INSUMOS.some(p=>p.id===c.id+'_raw')) ins.add(c.id+'_raw');
   }));
   addProd('pulledpork');                                            // lo usa la versión de papas con pulled pork
-  Object.keys(papasNeeds(100,'trufa')).forEach(i=>ins.add(i));      // las papas siempre están activas
+  ['trufa','parmtrufa'].forEach(v=>Object.keys(papasNeeds(100,v)).forEach(i=>ins.add(i)));      // las papas siempre están activas
   return {prod,ins};
 }
 let _asCache=null, _oiCache=null;   // _oiCache: lo que solo usan baguettes inactivas
@@ -2490,7 +2495,7 @@ const BAG_RECIPES={
   dip:['roastbeef','caldo','mayodip','cebolla','papasclasicas'],
   pulledpork:['pulledporkbase','mayonegra','caviarmostaza','papasclasicas'],
 };
-const PAPAS_RECIPES=['papasclasicas','papaspp','pulledporkbase','papastrufa'];
+const PAPAS_RECIPES=['papasclasicas','papastrufa','papasparm','papasparmtrufa','papaspp','pulledporkbase'];
 const REC_LABEL_PAPAS={pulledporkbase:'Pulled pork (para las papas)'};
 const REC_ICO={
   meat:'<path d="M4.8 13.2C4.2 9.8 6.4 6.4 10.4 5.6c3.8-.8 7.5 1.1 8.2 4.6.7 3.5-1.9 7.1-6.1 7.4-3.4.2-6.9-1.4-7.7-4.4z"/><path d="M8.6 12.6c.7-1.8 2.2-2.9 4-2.8"/><path d="M15.2 15.8l2.6 2.6"/>',
@@ -4615,7 +4620,8 @@ function renderCostos(){
 function setCostoBag(k){ _costoBag=k; renderCostos(); }
 // ----- Papas a la francesa en Costos: costo por insumo, precio y utilidad por canal -----
 let _costoPapas='pp';
-const PAPAS_NOMBRES={clasica:'Clásicas',pp:'Con pulled pork',trufa:'Con trufa'};
+const PAPAS_NOMBRES={clasica:'Clásicas',trufa:'Clásicas trufadas',parm:'Parmesano y perejil',parmtrufa:'Parm. y perejil trufadas',pp:'Papas Fondo'};
+const PAPAS_PRECIO_CAMPO={clasica:'precioBase',trufa:'precioTrufa',parm:'precioParm',parmtrufa:'precioParmTrufa'};
 function papasBreakdown(ver){
   const c=papasCfg(), g=ver==='pp'?c.ppPapasG:c.gramos, n=papasNeeds(g,ver), rows=[];
   Object.keys(n).forEach(id=>{ if(!INSUMOS.some(x=>x.id===id)) return; rows.push({n:insName(id),det:fmtQ(n[id],unitOfIns(id)),cost:n[id]*insFifoPrecio(id)/pdiv(id)}); });
@@ -4628,12 +4634,12 @@ function setPapasCostos(f,v){ if(!puedeEditarCostos()) return renderCostos(); se
 function papasCostosCard(esAndres,bru){
   const ver=_costoPapas, c=papasCfg(), rows=papasBreakdown(ver), total=rows.reduce((s,r)=>s+r.cost,0), mx=Math.max(...rows.map(r=>r.cost),1);
   const dis=esAndres?'':'disabled';
-  const precioDe=pl=>ver==='pp'?papasPrecioPP(pl):(ver==='trufa'?c.precioTrufa:c.precioBase);
-  const campo=pl=>ver==='pp'?(pl==='base'?'precioPP':'precioPP_'+pl):(ver==='trufa'?'precioTrufa':'precioBase');
+  const campo=pl=>ver==='pp'?(pl==='base'?'precioPP':'precioPP_'+pl):PAPAS_PRECIO_CAMPO[ver];
+  const precioDe=pl=>ver==='pp'?papasPrecioPP(pl):c[PAPAS_PRECIO_CAMPO[ver]];
   return `<div class="card">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-coin"/></svg></span>Papas a la francesa</div>
-    <div class="seg" role="group" aria-label="Versión de papas" style="margin-bottom:12px">${Object.keys(PAPAS_NOMBRES).map(v=>`<button class="${v===ver?'on':''}" onclick="setCostoPapasVer('${v}')">${PAPAS_NOMBRES[v]}</button>`).join('')}</div>
-    <div style="font-family:var(--serif);font-size:26px;font-weight:600;color:var(--dorado-light)">${fmtM(total,2)} <span style="font-size:12px;color:var(--text3);font-family:inherit;font-weight:400">costo por orden (${fmtQ(ver==='pp'?c.ppPapasG:c.gramos,'g')} de papa${ver==='pp'?' + '+fmtQ(c.ppG,'g')+' de pulled pork':''})</span></div>
+    <div style="overflow-x:auto;margin-bottom:12px"><div class="seg" role="group" aria-label="Versión de papas">${Object.keys(PAPAS_NOMBRES).map(v=>`<button class="${v===ver?'on':''}" onclick="setCostoPapasVer('${v}')">${PAPAS_NOMBRES[v]}</button>`).join('')}</div></div>
+    <div style="font-family:var(--serif);font-size:26px;font-weight:600;color:var(--dorado-light)">${fmtM(total,2)} <span style="font-size:12px;color:var(--text3);font-family:inherit;font-weight:400">costo por orden (${fmtQ(ver==='pp'?c.ppPapasG:c.gramos,'g')} de papa${ver==='pp'?' + '+fmtQ(c.ppG,'g')+' de pulled pork':''}${ver.startsWith('parm')?' + '+fmtQ(c.parmG,'g')+' de parmesano':''})</span></div>
     ${rows.map(r=>`<div class="cost-line"><div><span style="color:var(--crema);font-weight:600">${costoEsc(r.n)}</span><div style="font-size:11.5px;color:var(--text3)">${costoEsc(r.det)}</div></div><div style="font-weight:700;color:var(--crema)">${fmtM(r.cost,2)}</div></div>`).join('')}
     <div style="font-size:12px;color:var(--text3);margin:10px 0 4px">${bru?'Bruta = precio − costo.':'Neta = precio − costo − comisión del canal.'}</div>
     <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Canal</th><th>Precio venta</th><th>Comisión</th><th style="text-align:right">${bru?'Utilidad bruta':'Utilidad neta'}</th><th style="text-align:right">Margen</th></tr></thead><tbody>
@@ -4644,7 +4650,7 @@ function papasCostosCard(esAndres,bru){
       <td style="text-align:right;font-weight:700;color:${ut>=0?marginColor(mg):'#ff7a7a'}">${fmtM(ut,2)}</td>
       <td style="text-align:right;color:${marginColor(mg)}">${mg.toFixed(0)}%</td></tr>`; }).join('')}
     </tbody></table></div>
-    <div style="font-size:12px;color:var(--text3);margin-top:8px">${ver==='pp'?'Cada canal tiene su precio.':'El precio es el mismo en todos los canales; se edita en Directo.'} Gramos, rub y freidora: Configuración → Baguettes y recetas → Papas a la francesa. Aceite de la freidora ya incluido: ${fmtM(papasOilCost(ver==='pp'?c.ppPapasG:c.gramos),2)}.</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:8px">${ver==='pp'?'Cada canal tiene su precio.':'El precio es el mismo en todos los canales; se edita en Directo. Trufadas = +$15 sobre la versión normal.'} Gramos, rub y freidora: Configuración → Baguettes y recetas → Papas a la francesa. Aceite de la freidora ya incluido: ${fmtM(papasOilCost(ver==='pp'?c.ppPapasG:c.gramos),2)}.</div>
   </div>`;
 }
 function setCostoPrecioVenta(k,pl,val){ saveSalePriceField(k,pl,val); renderCostos(); }
@@ -4819,8 +4825,10 @@ const VENTA_ITEMS_ALL = [
   {k:'vodka',n:'VODKA',tipo:'bag'},
   {k:'pulledpork',n:'PULLED PORK',tipo:'bag'},
   {k:'papas',n:'Papas extra · clásicas',tipo:'papas'},
-  {k:'papaspp',n:'Papas extra · con pulled pork',tipo:'papas'},
-  {k:'papastrufa',n:'Papas extra · con trufa',tipo:'papas'},
+  {k:'papastrufa',n:'Papas extra · clásicas trufadas',tipo:'papas'},
+  {k:'papasparm',n:'Papas extra · parmesano y perejil',tipo:'papas'},
+  {k:'papasparmtrufa',n:'Papas extra · parmesano y perejil trufadas',tipo:'papas'},
+  {k:'papaspp',n:'Papas Fondo (con pulled pork)',tipo:'papas'},
   {k:'papasextra',n:'Extra de salsa (papas)',tipo:'extra'},
 ];
 // Solo las baguettes activas aparecen para vender
@@ -4832,6 +4840,8 @@ function ventaItemPrice(it){
   if(it.k==='papas') return c.precioBase;
   if(it.k==='papaspp') return papasPrecioPP(_ventaPlat);
   if(it.k==='papastrufa') return c.precioTrufa;
+  if(it.k==='papasparm') return c.precioParm;
+  if(it.k==='papasparmtrufa') return c.precioParmTrufa;
   return PAPAS_PRICE.extraSalsa;
 }
 let _ventaPlat='base';
@@ -5566,17 +5576,20 @@ function setBagActive(k,v){
 const PAPAS_FIELDS=[
   ['gramos','Gramos de papa por porción','g'],
   ['rubG','Rub: gramos de cada uno (sal, pimienta, perejil)','g'],
-  ['ppPapasG','Papas con pulled pork: gramos de papa','g'],
-  ['ppG','Papas con pulled pork: gramos de pulled pork','g'],
+  ['ppPapasG','Papas Fondo: gramos de papa','g'],
+  ['ppG','Papas Fondo: gramos de pulled pork','g'],
+  ['parmG','Parmesano y perejil: gramos de parmesano','g'],
   ['trufaMl','Aceite con aroma a trufa por porción','ml'],
   ['litros','Aceite en la freidora','L'],
   ['kgCambio','Kilos de papa que se fríen antes de cambiar el aceite','kg'],
   ['precioBase','Precio · papas clásicas','$'],
-  ['precioPP','Precio · papas con pulled pork (Directo)','$'],
-  ['precioPP_rappi','Precio · papas con pulled pork (Rappi)','$'],
-  ['precioPP_uber','Precio · papas con pulled pork (Uber Eats)','$'],
-  ['precioPP_didi','Precio · papas con pulled pork (Didi)','$'],
-  ['precioTrufa','Precio · papas con trufa','$'],
+  ['precioParm','Precio · papas parmesano y perejil','$'],
+  ['precioParmTrufa','Precio · parmesano y perejil trufadas','$'],
+  ['precioTrufa','Precio · papas clásicas trufadas','$'],
+  ['precioPP','Precio · Papas Fondo (Directo)','$'],
+  ['precioPP_rappi','Precio · Papas Fondo (Rappi)','$'],
+  ['precioPP_uber','Precio · Papas Fondo (Uber Eats)','$'],
+  ['precioPP_didi','Precio · Papas Fondo (Didi)','$'],
 ];
 function renderPapasEditor(){
   const el=document.getElementById('papasEditor'); if(!el) return;
@@ -5875,12 +5888,12 @@ function renderDashCosts(){
 
 // ---------------- PAPAS: incluidas vs extra ----------------
 function papasExtraFin(ver){
-  const c=papasCfg(); const precio=ver==='pp'?c.precioPP:(ver==='trufa'?c.precioTrufa:c.precioBase);
+  const c=papasCfg(); const precio=ver==='pp'?c.precioPP:c[PAPAS_PRECIO_CAMPO[ver]];
   const costo=papasPortionCost(ver)+empaqueCostPapas();
   return {precio,costo,util:precio-costo,mg:precio>0?(precio-costo)/precio*100:0};
 }
 function papasIncluidasCost(){ return papasPortionCost('clasica'); }
-// Papas con pulled pork por canal: utilidad neta = precio − comisión del canal − costo (incluye su caja)
+// Papas Fondo (con pulled pork) por canal: utilidad neta = precio − comisión del canal − costo (incluye su caja)
 function papasPPCanales(){ const costo=papasPortionCost('pp')+empaqueCostPapas(); return getPlatforms().map(pl=>{ const precio=papasPrecioPP(pl.k), cm=precio*getCommission(pl.k), util=precio-cm-costo; return {n:pl.n,precio,cm,costo,util,mg:precio>0?util/precio*100:0}; }); }
 function papasSummaryHtml(){
   const c=papasCfg(); const oilMl=(c.litros/(c.kgCambio||1))*c.gramos;
@@ -5889,7 +5902,7 @@ function papasSummaryHtml(){
     <div style="font-weight:700;color:var(--crema);margin-bottom:4px">Papas incluidas · ${fmtQ(c.gramos,'g')} por baguette</div>
     <div>Costo ${fmtM(papasIncluidasCost(),2)}, ya sumado al costo de cada baguette. Van dentro de la caja de la baguette, sin bolsita.</div>
     <div style="font-weight:700;color:var(--crema);margin:12px 0 2px">Papas extra · producto aparte (utilidad por orden)</div>
-    ${row('Clásicas','clasica')}${row('Con pulled pork','pp')}<div style="font-size:12px;color:var(--text3);padding:2px 0 6px">Por canal (neta, con comisión): ${papasPPCanales().map(x=>`${x.n} ${fmtM(x.precio,0)} → <b style="color:${marginColor(x.mg)}">${fmtM(x.util,2)}</b> (${x.mg.toFixed(0)}%)`).join(' · ')}</div>${row('Con trufa','trufa')}
+    ${row('Clásicas','clasica')}${row('Clásicas trufadas','trufa')}${row('Parmesano y perejil','parm')}${row('Parmesano y perejil trufadas','parmtrufa')}${row('Papas Fondo (con pulled pork)','pp')}<div style="font-size:12px;color:var(--text3);padding:2px 0 6px">Por canal (neta, con comisión): ${papasPPCanales().map(x=>`${x.n} ${fmtM(x.precio,0)} → <b style="color:${marginColor(x.mg)}">${fmtM(x.util,2)}</b> (${x.mg.toFixed(0)}%)`).join(' · ')}</div>${row('Con trufa','trufa')}
     <div style="margin-top:8px;font-size:12px;color:var(--text3)">El aceite de la freidora cuesta ${fmtM(papasOilCost(),2)} por porción (${fmtN(c.litros,1)} L, cambio cada ${fmtN(c.kgCambio,1)} kg, ${fmtN(oilMl,0)} ml por porción).</div></div>`;
 }
 
@@ -6118,7 +6131,7 @@ function packBoxes(items){
       boxes.push({title:`Caja ${n} · ${BAG_NAMES[k]}`,cls:'',checks:[`1 baguette ${BAG_NAMES[k]}`,`Papas incluidas ${fmtN(papG,0)} g, dentro de la caja (sin bolsita)`,'Sticker circular y alargado'],ap});
     }
   });
-  [['papas','Clásicas'],['papaspp','con pulled pork'],['papastrufa','con trufa']].forEach(([k,l])=>{
+  [['papas','Clásicas'],['papastrufa','clásicas trufadas'],['papasparm','parmesano y perejil'],['papasparmtrufa','parmesano y perejil trufadas'],['papaspp','Fondo (con pulled pork)']].forEach(([k,l])=>{
     for(let i=0;i<(items[k]||0);i++){ n++; boxes.push({title:`Caja ${n} · Papas extra`,cls:'k2',checks:[`Papas ${l} ${fmtN(c.gramos,0)} g en su propia caja`],ap:[]}); }
   });
   if((items.papasextra||0)>0) boxes.push({title:'Extras de salsa',cls:'k2',checks:[`${items.papasextra} contenedor${items.papasextra>1?'es':''} de salsa para papas`],ap:[]});
