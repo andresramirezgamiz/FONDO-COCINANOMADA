@@ -1224,6 +1224,9 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
   <div class="inp-group"><label class="lbl">Plataforma</label>
     <div class="user-row" id="ventaPlat"></div>
   </div>
+  <div class="inp-group" id="ventaOrdenGrp" style="display:none"><label class="lbl" for="ventaOrden">Nº de orden de la plataforma</label>
+    <input type="text" id="ventaOrden" autocomplete="off" autocapitalize="characters" placeholder="Como aparece en la tablet de la app">
+  </div>
   <div class="inp-group"><label class="lbl">¿Quién registra?</label>
     <div class="user-row" id="uVenta">
       <div class="chip on" onclick="selUser(this,'venta')">Andres</div>
@@ -2194,6 +2197,7 @@ async function initSB(){
         if(r.key==='priceMeta') S.priceMeta={...(S.priceMeta||{}),...r.value};
         if(r.key==='provRules') S.provRules={...(S.provRules||{}),...r.value};
         if(r.key==='aparte') S.aparte={...(S.aparte||{}),...r.value};
+        if(r.key==='fijos'&&Array.isArray(r.value)) S.fijos=r.value;
         // Ajustes de costos compartidos: la nube manda (los define Andres)
         if(COSTO_CFG_KEYS.includes(r.key)&&(!['platforms','empaques'].includes(r.key)||Array.isArray(r.value))){ S[r.key]=r.value; _cfgNube.add(r.key); }
         if(r.key==='fin'){ _cloudFinVer=r.value.ver||0; const {ver,...rest}=r.value; S.fin={...(S.fin||{}),...rest}; } });
@@ -2226,12 +2230,21 @@ async function initSB(){
     try{
       await subirVentasPend();
       const {data:vts,error:eV}=await sb.from('fondo_ventas').select('*').order('created_at',{ascending:false}).limit(500);
-      if(!eV&&vts) S.ventas=ventasPend().concat(vts.map(v=>({
-        plat:v.plataforma, items:v.items||{}, bolsas:v.bolsas||0,
-        bruto:v.bruto, comision:v.comision, neto:v.neto, costo:v.costo, utilidad:v.utilidad,
-        user:v.usuario, ts:v.created_at?new Date(v.created_at).getTime():Date.now(),
-        time:new Date(v.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+new Date(v.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
-      }))).sort((a,b)=>b.ts-a.ts);
+      if(!eV&&vts){
+        // Lo que descontó cada venta registrada aquí (no está en la nube): se conserva al recargar
+        const descPrev=new Map((S.ventas||[]).filter(v=>v.desc).map(v=>[v.ts,v.desc]));
+        const todas=vts.map(v=>({
+          desc:descPrev.get(v.created_at?new Date(v.created_at).getTime():0),
+          plat:v.plataforma, items:v.items||{}, bolsas:v.bolsas||0, orden:v.orden||'',
+          bruto:v.bruto, comision:v.comision, neto:v.neto, costo:v.costo, utilidad:v.utilidad,
+          user:v.usuario, ts:v.created_at?new Date(v.created_at).getTime():Date.now(), cat:v.created_at||null,
+          anulada:!!v.anulada, anuladaPor:v.anulada_por||'', motivoAnul:v.motivo_anulacion||'',
+          time:new Date(v.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+new Date(v.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
+        }));
+        // Las anuladas no cuentan en ningún reporte; se guardan aparte solo para mostrarlas en Ventas
+        S.ventas=ventasPend().concat(todas.filter(v=>!v.anulada)).sort((a,b)=>b.ts-a.ts);
+        S.ventasAnuladas=todas.filter(v=>v.anulada);
+      }
     }catch(e){}
 
     setSBStatus('✓ Conectado — datos sincronizados', '#5dba8a');
@@ -2304,7 +2317,7 @@ function loadS(){
     S.migU=p.migU||0;
     S.bagActive=p.bagActive||null;
     S.papasCfg=p.papasCfg||null;
-    S.pkg=p.pkg||{}; S.priceMeta=p.priceMeta||{}; S.provRules=p.provRules||{}; S.fin=p.fin||null; S.aparte=p.aparte||{};
+    S.pkg=p.pkg||{}; S.priceMeta=p.priceMeta||{}; S.provRules=p.provRules||{}; S.fin=p.fin||null; S.aparte=p.aparte||{}; S.fijos=p.fijos||null;
   } else { S.prices={...DEFAULT_PRICES}; }
   INV.forEach(p=>{if(S.inv[p.id]===undefined)S.inv[p.id]=0});
   INSUMOS.forEach(p=>{if(S.insumos[p.id]===undefined)S.insumos[p.id]=0});
@@ -2327,7 +2340,7 @@ async function saveS(){
     targets:S.targets,bagGramajes:S.bagGramajes,bagTargets:S.bagTargets,
     salePrices:S.salePrices,commissions:S.commissions,empaques:S.empaques,
     ventas:S.ventas,empaqueStock:S.empaqueStock,insLotes:S.insLotes,prodLotes:S.prodLotes,compras:S.compras,platforms:S.platforms,insPres:S.insPres,migU:S.migU,bagActive:S.bagActive,papasCfg:S.papasCfg,pkg:S.pkg,
-    priceMeta:S.priceMeta,provRules:S.provRules,fin:S.fin,aparte:S.aparte
+    priceMeta:S.priceMeta,provRules:S.provRules,fin:S.fin,aparte:S.aparte,fijos:S.fijos
   }));
 }
 
@@ -3168,8 +3181,10 @@ async function confirmDeleteHist(idx){
       if(!data||!data.length) throw new Error('no se encontró en la nube');
     }catch(e){ avisoNube('borrado del movimiento (no se tocó el stock)', e); return; }
   }
-  // Revertir en inventario producto final
-  const prod=INV.find(p=>p.n===h.nombre);
+  // Revertir en inventario producto final. Las producciones del Recetario se guardan con el nombre de la receta
+  // ("Mantequilla Entrecôt (Café de París)"), no con el del producto: se busca también por receta.
+  const recK=Object.keys(R).find(k=>R[k].name===h.nombre);
+  const prod=INV.find(p=>p.n===h.nombre)||(recK&&INV.find(p=>p.id===R[recK].invId));
   if(prod){
     if(h.tipo==='entrada'){ S.inv[prod.id]=Math.max(0,(S.inv[prod.id]||0)-h.total); consumirProdLote(prod.id,h.total); }
     else { S.inv[prod.id]=(S.inv[prod.id]||0)+h.total; addProdLote(prod.id,h.total,0); }
@@ -4274,8 +4289,55 @@ function renderDashProduccion(){
     ${tProd?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Producto</th><th style="text-align:right">Stock</th><th style="text-align:right">Por día</th><th style="text-align:center">Alcanza</th><th style="text-align:right">Preparar</th></tr></thead><tbody>${tProd}</tbody></table></div><div style="font-size:12px;color:var(--text3);margin-top:4px">Por día = consumo de los últimos 7 días entre 5 días de servicio.</div>`:'<div class="empty-note">Aún no hay consumo registrado en los últimos 7 días.</div>'}
     <div class="lbl" style="margin-top:16px">Baguettes por día (promedio de 4 semanas)</div>${barras}
     <div class="lbl" style="margin-top:16px">Ventas por canal esta semana</div>
-    ${tCanal?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Canal</th><th style="text-align:center">Baguettes</th><th style="text-align:right">Venta</th></tr></thead><tbody>${tCanal}</tbody></table></div>`:'<div class="empty-note">Sin ventas esta semana.</div>'}`;
+    ${tCanal?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Canal</th><th style="text-align:center">Baguettes</th><th style="text-align:right">Venta</th></tr></thead><tbody>${tCanal}</tbody></table></div>`:'<div class="empty-note">Sin ventas esta semana.</div>'}`+equilibrioHtml();
 }
+
+// ----- Costos fijos y punto de equilibrio -----
+// Costos fijos del mes (renta, gas, sueldos…): config compartida "fijos", solo Andres la edita
+const FIJOS_DEF=[{n:'Renta',m:0},{n:'Gas',m:0},{n:'Luz',m:0},{n:'Agua',m:0},{n:'Internet y teléfono',m:0},{n:'Sueldos',m:0},{n:'Mensualidades de apps',m:0}];
+const DIAS_SERV_MES=DIAS_SERV.length*52/12;   // ≈ 21.7 días de servicio al mes (miércoles a domingo)
+function fijosLista(){ return (S.fijos&&S.fijos.length)?S.fijos:FIJOS_DEF; }
+function fijosMes(){ return fijosLista().reduce((s,f)=>s+(+f.m||0),0); }
+// Utilidad por baguette después de comisión, costo de ingredientes y empaque.
+// Real si ya hay ≥10 baguettes vendidas en 30 días; si no, estimada con precios y comisiones de cada canal.
+function utilPorBaguette(){
+  const vs=ventasEntre(Date.now()-30*864e5,Date.now()+1), n=sumaBags(bagsVendidas(vs));
+  if(n>=10) return {u:vs.reduce((s,v)=>s+(+v.utilidad||0),0)/n, real:true, n};
+  const plats=getPlatforms(), bags=activeBagKeys(); let s=0, c=0;
+  bags.forEach(k=>plats.forEach(p=>{ s+=bagFin(k,p.k).neta; c++; }));
+  return {u:c?s/c:0, real:false, n};
+}
+function equilibrioHtml(){
+  const F=fijosMes();
+  if(!(F>0)) return `<div class="lbl" style="margin-top:16px">Punto de equilibrio</div><div class="empty-note">Captura los costos fijos del mes en Configuración → Finanzas para calcularlo.</div>`;
+  const U=utilPorBaguette();
+  if(!(U.u>0)) return `<div class="lbl" style="margin-top:16px">Punto de equilibrio</div><div class="empty-note">La utilidad por baguette es cero o negativa: con estos precios no se alcanza el equilibrio.</div>`;
+  const bMes=Math.ceil(F/U.u), bDia=bMes/DIAS_SERV_MES;
+  const d=new Date(), ini=new Date(d.getFullYear(),d.getMonth(),1).getTime(), vMes=ventasEntre(ini,Date.now()+1);
+  const uMes=vMes.reduce((s,v)=>s+(+v.utilidad||0),0), pc=Math.min(100,Math.max(0,uMes/F*100)), falta=Math.max(0,Math.ceil((F-uMes)/U.u));
+  return `<div class="lbl" style="margin-top:16px">Punto de equilibrio</div>
+    <div style="display:flex;gap:22px;flex-wrap:wrap;margin-bottom:8px">
+      <div><div style="font-family:var(--serif);font-size:26px;font-weight:600;color:var(--dorado-light)">${fmtN(bDia,1)}</div><div style="font-size:12px;color:var(--text2)">baguettes por día de servicio</div></div>
+      <div><div style="font-family:var(--serif);font-size:26px;font-weight:600;color:var(--crema)">${bMes}</div><div style="font-size:12px;color:var(--text2)">baguettes al mes · fijos ${fmtM(F,0)}</div></div>
+    </div>
+    <div class="prog" role="progressbar" aria-valuenow="${pc.toFixed(0)}" aria-valuemin="0" aria-valuemax="100"><u style="width:${pc.toFixed(0)}%"></u></div>
+    <div style="font-size:13px;color:var(--text2);margin-top:6px">${uMes>=F?`Este mes ya cubriste los fijos: ${fmtM(uMes-F,0)} de ganancia.`:`Este mes llevas ${fmtM(Math.max(0,uMes),0)} de ${fmtM(F,0)} (${pc.toFixed(0)} %). Faltan ≈ ${falta} baguettes.`}</div>
+    <div style="font-size:12px;color:var(--text3);margin-top:4px">Utilidad por baguette ${fmtM(U.u,0)} ${U.real?`(real: ${U.n} baguettes en 30 días)`:'(estimada con tus precios y comisiones; será real al pasar de 10 ventas)'}.</div>`;
+}
+function fijosEditorHtml(){
+  const ed=puedeEditarCostos();
+  return `<div class="divider"></div><div class="lbl">Costos fijos del mes</div>
+    ${fijosLista().map((f,i)=>`<div style="display:grid;grid-template-columns:1fr 110px auto;gap:8px;align-items:center;margin-bottom:6px">
+      <input type="text" value="${costoEsc(f.n)}" ${ed?'':'disabled'} oninput="setFijo(${i},'n',this.value)" aria-label="Concepto">
+      <input type="number" inputmode="decimal" step="any" min="0" value="${+f.m||0}" ${ed?'':'disabled'} oninput="setFijo(${i},'m',this.value)" aria-label="Monto mensual">
+      ${ed?`<button class="btn btn-ghost btn-sm" onclick="quitarFijo(${i})" aria-label="Quitar">✕</button>`:'<span></span>'}</div>`).join('')}
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">${ed?`<button class="btn btn-outline btn-sm" onclick="agregarFijo()">+ Agregar</button>`:'<span style="font-size:12px;color:var(--text3)">Solo Andres los cambia.</span>'}<b style="color:var(--crema)">${fmtM(fijosMes(),0)} / mes</b></div>`;
+}
+let _fijosT=null;
+function guardarFijos(){ saveS(); clearTimeout(_fijosT); _fijosT=setTimeout(()=>saveCfgToDB('fijos',S.fijos),600); }
+function setFijo(i,f,v){ if(!puedeEditarCostos()) return; S.fijos=JSON.parse(JSON.stringify(fijosLista())); S.fijos[i][f]=f==='m'?Math.max(0,parseFloat(v)||0):v; guardarFijos(); }
+function agregarFijo(){ if(!puedeEditarCostos()) return; S.fijos=fijosLista().concat({n:'Otro',m:0}); guardarFijos(); renderFinEditor(); }
+function quitarFijo(i){ if(!puedeEditarCostos()) return; S.fijos=fijosLista().filter((_,j)=>j!==i); guardarFijos(); renderFinEditor(); }
 
 // ----- Baguettes inactivas: lo que SOLO usan ellas se oculta fuera de Configuración -----
 function soloInactivasSets(){
@@ -4890,12 +4952,15 @@ function openVentaModal(){
   // usuario activo
   document.querySelectorAll('#uVenta .chip').forEach(c=>c.classList.toggle('on',c.textContent===(S.users.venta||S.activeUser)));
   document.getElementById('ventaBolsas').value=0;
+  document.getElementById('ventaOrden').value=''; ventaOrdenVisible();
   renderVentaItems();
   updateVentaTotals();
   openM('mVenta');
 }
+// El número de orden solo aplica a plataformas (Directo no tiene)
+function ventaOrdenVisible(){ const g=document.getElementById('ventaOrdenGrp'); if(g) g.style.display=_ventaPlat==='base'?'none':''; }
 function setVentaPlat(k,el){
-  _ventaPlat=k;
+  _ventaPlat=k; ventaOrdenVisible();
   document.querySelectorAll('#ventaPlat .chip').forEach(c=>c.classList.remove('on'));
   el.classList.add('on');
   updateVentaTotals();
@@ -4951,6 +5016,9 @@ async function confirmVenta(){
   if(_ventaGuardando) return;
   const t=ventaCalc();
   if(t.totalBags===0 && t.papas===0 && t.extra===0){ showToast('Agrega al menos un producto'); return; }
+  const orden=_ventaPlat==='base'?'':(document.getElementById('ventaOrden')?.value||'').trim().toUpperCase();
+  if(_ventaPlat!=='base'&&!orden&&!confirm('¿Registrar sin número de orden? Sin él no se puede cuadrar contra el estado de cuenta de la plataforma.')) return;
+  t.orden=orden;
   _ventaGuardando=true;
   try{ await registrarVenta(t); }finally{ _ventaGuardando=false; }
 }
@@ -4958,6 +5026,9 @@ async function registrarVenta(t){
   const bolsas=parseInt(document.getElementById('ventaBolsas')?.value)||0;
   const gramajes=S.bagGramajes||DEFAULT_BAG_GRAMAJES;
   const items={}; const touched={inv:new Set(),ins:new Set()}; const pcfg=papasCfg();
+  // Foto del stock antes de descontar: si se anula la venta se devuelve exactamente lo que se descontó
+  // (si no había stock suficiente, se descontó menos de lo teórico)
+  const fotoAntes={inv:{...S.inv},ins:{...S.insumos},emp:{...S.empaqueStock}};
   // Descontar producto final + insumos (pan por pieza, papas con su rub y aceite)
   VENTA_ITEMS.filter(i=>i.tipo==='bag').forEach(b=>{
     const q=_ventaQty[b.k]||0; if(q<=0) return;
@@ -4982,10 +5053,13 @@ async function registrarVenta(t){
     if(e.id==='bolsa_pedido') used+=bolsas;
     if(used>0) S.empaqueStock[e.id]=Math.max(0,(S.empaqueStock[e.id]||0)-used);
   });
+  const desc={};
+  [['inv',S.inv],['ins',S.insumos],['emp',S.empaqueStock]].forEach(([t,o])=>Object.keys(o).forEach(id=>{
+    const d=(fotoAntes[t][id]||0)-(o[id]||0); if(d>0.0001) (desc[t]=desc[t]||{})[id]=d; }));
   // Registrar venta
   const now=new Date();
   const venta={
-    plat:_ventaPlat, items, bolsas,
+    plat:_ventaPlat, items, bolsas, orden:t.orden||'', desc,
     bruto:t.bruto, comision:t.comision, neto:t.neto, costo:t.costo, utilidad:t.utilidad,
     user:S.users.venta||S.activeUser||'Andres',
     time:now.toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),
@@ -5011,17 +5085,85 @@ const VENTAS_PEND_KEY='fondo_ventas_pend';
 function ventasPend(){ try{ return JSON.parse(localStorage.getItem(VENTAS_PEND_KEY)||'[]'); }catch(e){ return []; } }
 function setVentasPend(a){ try{ localStorage.setItem(VENTAS_PEND_KEY,JSON.stringify(a)); }catch(e){} }
 async function insertVenta(sb,v){
-  const { error } = await sb.from('fondo_ventas').insert({
+  const fila={
     plataforma:v.plat, items:v.items, bolsas:v.bolsas,
     bruto:v.bruto, comision:v.comision, neto:v.neto, costo:v.costo, utilidad:v.utilidad, usuario:v.user,
     created_at:new Date(v.ts).toISOString()   // la hora real de la venta, aunque se suba después
-  });
+  };
+  let { error } = await sb.from('fondo_ventas').insert(v.orden?{...fila,orden:v.orden}:fila);
+  // Si aún no se corre supabase/010 (sin columna "orden"), se guarda la venta sin el número para no perderla
+  if(error&&v.orden&&/orden/.test(error.message||'')) ({ error } = await sb.from('fondo_ventas').insert(fila));
   if(error) throw error;
+  v.cat=fila.created_at;
 }
 async function saveVentaToDB(v){
   const sb=getSB();
   try{ if(!sb) throw new Error('sin conexión'); await insertVenta(sb,v); }
   catch(e){ setVentasPend(ventasPend().concat(v)); avisoNube('venta (queda guardada aquí y se reintenta sola)', e); }
+}
+// Devuelve al inventario lo que descontó una venta. Si la venta se registró en este dispositivo se usa lo que
+// realmente se descontó (v.desc); si no, se recalcula con los gramajes actuales.
+// Los totales de stock vuelven; los lotes FIFO de insumos no se reconstruyen.
+function devolverInventarioVenta(v){
+  const gramajes=S.bagGramajes||DEFAULT_BAG_GRAMAJES, pcfg=papasCfg(), touched={inv:new Set(),ins:new Set()};
+  const addIns=(id,q)=>{ if(!(q>0)||!INSUMOS.some(x=>x.id===id)) return; S.insumos[id]=(S.insumos[id]||0)+q; touched.ins.add(id); };
+  const addInv=(id,q)=>{ if(!(q>0)) return; S.inv[id]=(S.inv[id]||0)+q; addProdLote(id,q,0); touched.inv.add(id); };
+  if(v.desc){
+    Object.entries(v.desc.inv||{}).forEach(([id,q])=>addInv(id,q));
+    Object.entries(v.desc.ins||{}).forEach(([id,q])=>addIns(id,q));
+    Object.entries(v.desc.emp||{}).forEach(([id,q])=>{ S.empaqueStock[id]=(S.empaqueStock[id]||0)+q; });
+    return touched;
+  }
+  const papas=(g,ver)=>{ const n=papasNeeds(g,ver); Object.keys(n).forEach(id=>addIns(id,n[id])); };
+  let totalBags=0, nPapas=0;
+  Object.entries(v.items||{}).forEach(([k,q])=>{
+    if(!(q>0)) return;
+    if(BAG_NAMES[k]){
+      totalBags+=q;
+      (gramajes[k]||[]).forEach(c=>{
+        if(!c.id||c.id==='nuevo') return;
+        const amt=(c.g||0)*q;
+        if(PAPAS_COMP_IDS.includes(c.id)) papas(amt,'clasica');
+        else if(INV.some(p=>p.id===c.id)) addInv(c.id,amt);
+        else addIns(c.id,amt);
+      });
+    } else if(PAPAS_VER[k]){
+      nPapas+=q; papas((k==='papaspp'?pcfg.ppPapasG:pcfg.gramos)*q,PAPAS_VER[k]);
+      if(k==='papaspp') addInv('pulledpork',pcfg.ppG*q);
+    }
+  });
+  getEmpaques().forEach(e=>{
+    let used=(e.porBag||0)*totalBags+(e.porPapas||0)*nPapas;
+    if(e.id==='bolsa_pedido') used+=v.bolsas||0;
+    if(used>0) S.empaqueStock[e.id]=(S.empaqueStock[e.id]||0)+used;
+  });
+  return touched;
+}
+// Anular: la venta no se borra; se marca como anulada (quién, cuándo, por qué) y deja de contar en reportes
+async function anularVenta(i){
+  const v=S.ventas[i]; if(!v) return;
+  const motivo=(prompt(`¿Por qué se anula esta venta?\n\n${ventaPlatName(v.plat)} · ${fmtM(v.bruto,0)} · ${v.time}${v.orden?' · orden '+v.orden:''}\n\nSe devuelve el inventario que descontó.`)||'').trim();
+  if(!motivo) return;
+  const pend=ventasPend(), ip=pend.findIndex(p=>p.ts===v.ts);
+  if(ip>=0){ pend.splice(ip,1); setVentasPend(pend); }   // nunca llegó a la nube: basta con quitarla de pendientes
+  else{
+    if(!v.cat) return showToast('Esta venta aún se está subiendo. Toca Sincronizar e intenta otra vez.');
+    const sb=getSB(); if(!sb) return showToast('Sin conexión: no se puede anular ahora.');
+    try{
+      const {data,error}=await sb.from('fondo_ventas')
+        .update({anulada:true,anulada_por:S.activeUser||'',anulada_at:new Date().toISOString(),motivo_anulacion:motivo})
+        .eq('created_at',v.cat).eq('plataforma',v.plat).select('created_at');
+      if(error) throw error;
+      if(!data||!data.length) throw new Error('no se encontró en la nube');
+    }catch(e){ return avisoNube(/anulada|motivo/.test(e.message||'')?'anulación (falta correr supabase/010)':'anulación (no se tocó el inventario)', e); }
+  }
+  const touched=devolverInventarioVenta(v);
+  S.ventas.splice(i,1);
+  (S.ventasAnuladas=S.ventasAnuladas||[]).unshift({...v,anulada:true,anuladaPor:S.activeUser||'',motivoAnul:motivo});
+  await saveS();
+  touched.inv.forEach(id=>saveInvToDB(id)); touched.ins.forEach(id=>saveInsumosToDB(id)); getEmpaques().forEach(e=>saveEmpaqueToDB(e.id));
+  showToast('Venta anulada · inventario devuelto');
+  renderVentas(); renderDash(); renderInv(); renderInsumos(); updateAlertPill();
 }
 async function subirVentasPend(){
   const sb=getSB(), pend=ventasPend(); if(!sb||!pend.length) return;
@@ -5114,19 +5256,22 @@ function renderVentas(){
   if(list){
     if(!S.ventas.length){ list.innerHTML='<div class="empty"><div class="empty-icon">🧾</div><div class="empty-txt">Aún no hay ventas.<br>Toca «Registrar venta» cuando salga el primer pedido.</div></div>'; }
     else{
-      list.innerHTML=S.ventas.slice(0,40).map(v=>{
-        const itemsTxt=Object.entries(v.items||{}).map(([k,q])=>{
-          const it=VENTA_ITEMS_ALL.find(i=>i.k===k); return `${q}× ${it?it.n:k}`;
-        }).join(', ');
-        return `<div style="padding:12px 0;border-bottom:1px solid var(--border)">
+      const itemsTxt=v=>Object.entries(v.items||{}).map(([k,q])=>{
+        const it=VENTA_ITEMS_ALL.find(i=>i.k===k); return `${q}× ${it?it.n:k}`;
+      }).join(', ');
+      list.innerHTML=S.ventas.slice(0,40).map((v,i)=>`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
-            <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--crema)">${ventaPlatName(v.plat)} · ${v.user}</div><div style="font-size:11px;color:var(--gris);margin-top:2px">${itemsTxt||'—'}</div></div>
+            <div style="flex:1"><div style="font-size:13px;font-weight:600;color:var(--crema)">${costoEsc(ventaPlatName(v.plat))} · ${costoEsc(v.user)}${v.orden?` · <span style="color:var(--dorado-light)">#${costoEsc(v.orden)}</span>`:''}</div><div style="font-size:11px;color:var(--gris);margin-top:2px">${itemsTxt(v)||'—'}</div></div>
             <div style="text-align:right"><div style="font-family:var(--serif);font-size:17px;font-weight:600;color:var(--verde-light)">${fmtM(v.utilidad,0)}</div><div style="font-size:9px;color:var(--gris)">neto ${fmtM(v.neto,0)}</div></div>
           </div>
-          <div style="font-size:9.5px;color:var(--gris);margin-top:4px">${v.time}</div>
-        </div>`;
-      }).join('');
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px"><span style="font-size:9.5px;color:var(--gris)">${v.time}</span><button onclick="anularVenta(${i})" style="background:none;border:1px solid rgba(255,100,100,.3);color:#ff8888;border-radius:6px;padding:5px 9px;font-size:11px;cursor:pointer">Anular</button></div>
+        </div>`).join('');
     }
+    // Anuladas: tachadas, con quién y por qué (no cuentan en reportes)
+    if((S.ventasAnuladas||[]).length) list.innerHTML+=`<div class="lbl" style="margin-top:16px">Anuladas</div>`+S.ventasAnuladas.slice(0,10).map(v=>`<div style="padding:10px 0;border-bottom:1px solid var(--border);opacity:.6">
+          <div style="font-size:12.5px;color:var(--crema);text-decoration:line-through">${costoEsc(ventaPlatName(v.plat))} · ${fmtM(v.bruto,0)}${v.orden?` · #${costoEsc(v.orden)}`:''} · ${v.time}</div>
+          <div style="font-size:11px;color:var(--gris);margin-top:2px">Anuló ${costoEsc(v.anuladaPor||'—')}: ${costoEsc(v.motivoAnul||'')}</div>
+        </div>`).join('');
   }
 }
 
@@ -6166,6 +6311,7 @@ function renderFinEditor(){
   const F=[['verde','Margen verde desde (%)'],['amarillo','Margen amarillo desde (%)'],['sobre','Sobreprecio en plataformas (%)'],['cupon','Cupón bienvenida Rappi (%)'],['activUber','Activación Uber Eats ($)'],['diasMin','Alerta de cobertura (días)']];
   el.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><span style="font-size:13px;color:var(--text2)">Utilidad que se muestra</span>${modeToggleHtml()}</div>
     <div class="fin-grid">${F.map(([k,l])=>`<div class="inp-group" style="margin-bottom:4px"><label class="lbl">${l}</label><input type="number" inputmode="decimal" step="any" value="${f[k]}" oninput="setFinCfg('${k}',this.value)"></div>`).join('')}</div>
+    ${fijosEditorHtml()}
     <div class="divider"></div><div class="lbl">Va en contenedor aparte</div>
     ${APARTE_OPTS.map(([k,l])=>`<label style="display:flex;align-items:center;gap:12px;padding:9px 0;border-bottom:1px solid var(--border);font-size:14px;color:var(--crema);cursor:pointer"><input type="checkbox" style="width:22px;height:22px;accent-color:var(--verde)" ${isAparte(k)?'checked':''} onchange="setAparte('${k}',this.checked)">${l}</label>`).join('')}`;
 }
