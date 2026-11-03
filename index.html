@@ -1700,7 +1700,8 @@ caldo:{
 mantequillaentrecot:{
     name:'Mantequilla Entrecôt (Café de París)',cat:'mayo',tiempo:'40 min',rendPct:.95,invId:'mantequillaentrecot',
     ing:[
-      {k:'mantequilla',n:'Mantequilla (220 espumada + 10 para sudar)',a:230,u:'g'},
+      {k:'mantequilla',n:'Mantequilla (para espumar)',a:220,u:'g'},
+      {k:'mantequilla',tok:'mantequilla_sudar',n:'Mantequilla (para sudar)',a:10,u:'g'},
       {k:'echalote_raw',n:'Echalote (láminas finas)',a:310,u:'g'},
       {k:'aceite_oliva',n:'Aceite de oliva (2 cucharadas)',a:28,u:'ml'},
       {k:'nuez',n:'Nuez pecana (TOSTAR antes)',a:33,u:'g'},
@@ -1714,10 +1715,10 @@ mantequillaentrecot:{
       {k:'perejil',n:'Perejil',a:14,u:'g'},
     ],
     steps:[
-      {t:'Atemperar la mantequilla',x:'Sacar <strong>220g de mantequilla</strong> del refrigerador y dejarla a temperatura ambiente hasta que llegue a <strong>18-22°C</strong> y se pueda batir.',timer:null,ck:'La mantequilla cede al presionarla con el dedo pero NO está derretida ni aceitosa.',tip:'⚠️ NUNCA meter al microondas. Si se derrite aunque sea un poco, ya no espuma y la emulsión se rompe. Este paso no se puede apurar.'},
+      {t:'Atemperar la mantequilla',x:'Sacar <span class="sq">{mantequilla} de mantequilla</span> del refrigerador y dejarla a temperatura ambiente hasta que llegue a <strong>18-22°C</strong> y se pueda batir.',timer:null,ck:'La mantequilla cede al presionarla con el dedo pero NO está derretida ni aceitosa.',tip:'⚠️ NUNCA meter al microondas. Si se derrite aunque sea un poco, ya no espuma y la emulsión se rompe. Este paso no se puede apurar.'},
       {t:'Tostar las nueces',x:'En sartén seca, tostar los <span class="sq">{nuez} de nuez</span> a fuego medio 5 minutos hasta color marrón oscuro y aroma intenso. Reservar.',timer:5,ck:'Color marrón oscuro sin quemarse. Aroma a nuez tostada intenso.',tip:'⚠️ Pasan de tostadas a quemadas muy rápido. No las dejes solas — si se queman, el amargor arruina toda la mantequilla.'},
-      {t:'Sudar los echalotes',x:'En sartén, calentar <span class="sq">{aceite_oliva} de aceite de oliva</span> (2 cucharadas) más <strong>10g de mantequilla</strong>. Agregar <span class="sq">{echalote_raw} de echalote</span> en láminas finas y sudar a fuego bajo.',timer:6,ck:'Echalotes suaves y translúcidos. SIN color dorado.',tip:'Mover poco. Si se doran, aportan amargor y manchan el color final de la mantequilla.'},
-      {t:'Batir la mantequilla hasta espumar',x:'En un bowl, batir los <strong>220g de mantequilla atemperada</strong> hasta que <strong>espume</strong>: debe verse pálida, aireada y con volumen.',timer:null,ck:'Color amarillo pálido, textura aireada tipo crema batida. Si sigue densa y amarilla intensa, falta batir.',tip:'Este espumado es lo que da la textura ligera. Con batidora de mano toma 3-5 min a velocidad media-alta.'},
+      {t:'Sudar los echalotes',x:'En sartén, calentar <span class="sq">{aceite_oliva} de aceite de oliva</span> (2 cucharadas) más <span class="sq">{mantequilla_sudar} de mantequilla</span>. Agregar <span class="sq">{echalote_raw} de echalote</span> en láminas finas y sudar a fuego bajo.',timer:6,ck:'Echalotes suaves y translúcidos. SIN color dorado.',tip:'Mover poco. Si se doran, aportan amargor y manchan el color final de la mantequilla.'},
+      {t:'Batir la mantequilla hasta espumar',x:'En un bowl, batir los <span class="sq">{mantequilla} de mantequilla atemperada</span> hasta que <strong>espume</strong>: debe verse pálida, aireada y con volumen.',timer:null,ck:'Color amarillo pálido, textura aireada tipo crema batida. Si sigue densa y amarilla intensa, falta batir.',tip:'Este espumado es lo que da la textura ligera. Con batidora de mano toma 3-5 min a velocidad media-alta.'},
       {t:'Licuar la base de sabor',x:'A la licuadora (vaso de PLÁSTICO): <span class="sq">{sardinas} sardinas sin huesos</span>, <span class="sq">{alcaparras} alcaparras</span>, <span class="sq">{mostaza_dijon} mostaza Dijon</span>, <span class="sq">{huevo} yemas</span>, <span class="sq">{limon} jugo de limón</span>, <span class="sq">{salsa_inglesa} salsa inglesa</span>, <span class="sq">{albahaca} albahaca</span>, <span class="sq">{perejil} perejil</span>, la nuez tostada y los echalotes sudados. Licuar hasta pasta homogénea.',timer:null,ck:null,tip:'⚠️ Vaso de PLÁSTICO para licuar caliente. El vidrio puede romperse con el choque térmico.'},
       {t:'Colar (opcional)',x:'Si se quiere una textura más homogénea, <strong>colar la mezcla verde</strong> para retirar fibras antes de integrarla.',timer:null,ck:null,tip:'Colar da un acabado más fino y un color más limpio. Es opcional pero se nota en el resultado final.'},
       {t:'Integrar con la mantequilla espumada',x:'Incorporar la pasta al bowl con la <strong>mantequilla espumada</strong>. Integrar con <strong>miserable (espátula)</strong> con movimientos envolventes hasta que quede bien integrado.',timer:null,ck:'Color beige-dorado con toques verdes (NO verde sólido). Textura aireada y homogénea, sin vetas.',tip:'No uses licuadora ni batidora aquí — romperías el aire que le diste a la mantequilla. Se conserva hasta 2 semanas en refrigeración.'},
@@ -2590,8 +2591,8 @@ function rescale(idx,val){
       const inputs=document.querySelectorAll('#ingBody input');
       if(inputs[i])inputs[i].value=sc;
     }
-    document.getElementById('sc'+idx).textContent=fmtQ(Math.round(parseFloat(val)*10)/10,ing.u);
   });
+  document.getElementById('sc'+idx).textContent=fmtQ(Math.round(parseFloat(val)*10)/10,rec.ing[idx].u);
   updateOutputs();
 }
 
@@ -2661,7 +2662,8 @@ function resumeGuide(){
   S.scaleFactor=p.scaleFactor||1;
   S.guide.recKey=p.recKey;
   S.guide.step=p.step||0;
-  S.guide.scaledIng=p.scaledIng||R[p.recKey].ing.map(i=>({...i,scaled:Math.round(i.a*S.scaleFactor*10)/10}));
+  // Si la receta cambió de ingredientes desde que se guardó, se recalcula con el escalado guardado
+  S.guide.scaledIng=(p.scaledIng&&p.scaledIng.length===R[p.recKey].ing.length)?p.scaledIng:R[p.recKey].ing.map(i=>({...i,scaled:Math.round(i.a*S.scaleFactor*10)/10}));
   document.getElementById('gTitle').textContent=R[p.recKey].name;
   document.getElementById('guideOverlay').classList.add('on');
   renderStep();
@@ -2712,7 +2714,7 @@ function renderStep(){
   // Replace tokens
   let txt=step.x;
   S.guide.scaledIng.forEach(ing=>{
-    txt=txt.split('{'+ing.k+'}').join('<span class="sq">'+fmtQ(ing.scaled,ing.u)+'</span>');
+    txt=txt.split('{'+(ing.tok||ing.k)+'}').join('<span class="sq">'+fmtQ(ing.scaled,ing.u)+'</span>');
   });
 
   // Build ingredient reference
