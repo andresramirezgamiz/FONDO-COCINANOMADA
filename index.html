@@ -2148,6 +2148,7 @@ async function initSB(){
     S.hist = hist.map(h=>({
       tipo:h.tipo, nombre:h.producto, weights:h.pesos||[],
       user:h.usuario, total:h.peso_total, nota:h.nota||'', ts:h.created_at?new Date(h.created_at).getTime():Date.now(),
+      cat:h.created_at||null,
       time:new Date(h.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+
            new Date(h.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
     }));
@@ -2221,19 +2222,22 @@ async function initSB(){
     if(_cloudFinVer<5){ applyPriceBookV5(); saveS(); _cloudFinVer=5; pushPriceBook(); }
     // v6: pulled pork nuevo y papas con pulled pork (200 g + 150 g, precio por canal)
     if(_cloudFinVer<6){ applyPriceBookV6(); saveS(); _cloudFinVer=6; pushPriceBook(); }
-    // Ventas — resiliente si la tabla no existe
+    // Ventas — resiliente si la tabla no existe. Primero se reintentan las que no se pudieron subir.
     try{
+      await subirVentasPend();
       const {data:vts,error:eV}=await sb.from('fondo_ventas').select('*').order('created_at',{ascending:false}).limit(500);
-      if(!eV&&vts) S.ventas=vts.map(v=>({
+      if(!eV&&vts) S.ventas=ventasPend().concat(vts.map(v=>({
         plat:v.plataforma, items:v.items||{}, bolsas:v.bolsas||0,
         bruto:v.bruto, comision:v.comision, neto:v.neto, costo:v.costo, utilidad:v.utilidad,
         user:v.usuario, ts:v.created_at?new Date(v.created_at).getTime():Date.now(),
         time:new Date(v.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+new Date(v.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
-      }));
+      }))).sort((a,b)=>b.ts-a.ts);
     }catch(e){}
 
     setSBStatus('✓ Conectado — datos sincronizados', '#5dba8a');
     setDot('ok');
+    const nPend=ventasPend().length;
+    if(nPend){ setDot('err'); const t=document.getElementById('sbDotTxt'); if(t) t.textContent=nPend+(nPend===1?' venta sin subir':' ventas sin subir'); }
     renderDash(); renderInv(); renderHist(); updateAlertPill();
     if(_manualSync){ showToast('Datos actualizados'); _manualSync=false; }
   }catch(e){
@@ -2327,26 +2331,34 @@ async function saveS(){
   }));
 }
 
-async function saveInvToDB(prodId){
-  const sb = getSB(); if(!sb) return;
-  try{
-    await sb.from('fondo_inventory').upsert({id:prodId, stock:S.inv[prodId]});
-  }catch(e){ console.warn('SB inv error:', e.message); }
+// Una escritura a la nube falló: se avisa al operador (antes solo quedaba en la consola)
+function avisoNube(que, err){
+  console.warn('SB '+que+':', err&&err.message||err);
+  setDot('err');
+  showToast('⚠ No se guardó en la nube: '+que+'. Revisa la señal y toca Sincronizar.');
 }
 
+async function saveInvToDB(prodId){
+  const sb = getSB(); if(!sb) return false;
+  try{
+    const { error } = await sb.from('fondo_inventory').upsert({id:prodId, stock:S.inv[prodId]});
+    if(error) throw error;
+    return true;
+  }catch(e){ avisoNube('inventario', e); return false; }
+}
+
+// Devuelve el created_at de la fila en la nube (sirve para borrarla después) o null si no se guardó
 async function saveHistToDB(entry){
-  const sb = getSB(); if(!sb) return;
+  const sb = getSB(); if(!sb) return null;
   const base = { tipo: entry.tipo, producto: entry.nombre, usuario: entry.user, peso_total: entry.total, pesos: entry.weights };
   try{
     // Intenta incluir la nota (requiere columna 'nota' en fondo_history)
-    const { error } = await sb.from('fondo_history').insert({ ...base, nota: entry.nota||null });
-    if(error){
-      // Si la columna 'nota' aún no existe, guarda sin ella para no perder el movimiento
-      await sb.from('fondo_history').insert(base);
-    }
-  }catch(e){
-    try{ await sb.from('fondo_history').insert(base); }catch(e2){ console.warn('SB hist error:', e2.message); }
-  }
+    let { data, error } = await sb.from('fondo_history').insert({ ...base, nota: entry.nota||null }).select('created_at').single();
+    // Si la columna 'nota' aún no existe, guarda sin ella para no perder el movimiento
+    if(error) ({ data, error } = await sb.from('fondo_history').insert(base).select('created_at').single());
+    if(error) throw error;
+    return data&&data.created_at||null;
+  }catch(e){ avisoNube('movimiento', e); return null; }
 }
 
 async function savePricesToDB(){
@@ -3147,6 +3159,15 @@ async function confirmDeleteHist(idx){
   if(!h)return;
   const conf=confirm(`¿Borrar este movimiento y revertir el stock?\n\n${h.tipo==='entrada'?'+':'-'}${fmtQ(h.total,unitByName(h.nombre))} de ${h.nombre}\n${h.user} · ${h.time}\n\nEsto no se puede deshacer.`);
   if(!conf)return;
+  // Borrar primero en la nube: si no, la próxima sincronización lo regresa con el stock ya revertido
+  if(h.cat){
+    const sb=getSB(); if(!sb){ showToast('Sin conexión: no se puede borrar ahora.'); return; }
+    try{
+      const {data,error}=await sb.from('fondo_history').delete().eq('tipo',h.tipo).eq('producto',h.nombre).eq('created_at',h.cat).select('created_at');
+      if(error) throw error;
+      if(!data||!data.length) throw new Error('no se encontró en la nube');
+    }catch(e){ avisoNube('borrado del movimiento (no se tocó el stock)', e); return; }
+  }
   // Revertir en inventario producto final
   const prod=INV.find(p=>p.n===h.nombre);
   if(prod){
@@ -3170,11 +3191,13 @@ async function confirmDeleteHist(idx){
 
 function addHist(tipo,nombre,weights,user,nota){
   const now=new Date();
-  S.hist.unshift({tipo,nombre,weights,user,nota:nota||'',ts:now.getTime(),
+  const h={tipo,nombre,weights,user,nota:nota||'',ts:now.getTime(),
     time:now.toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+now.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'}),
     total:weights.reduce((a,b)=>a+b,0)
-  });
+  };
+  S.hist.unshift(h);
   if(S.hist.length>200)S.hist.pop();
+  return h;
 }
 
 // ================================================================
@@ -3226,12 +3249,13 @@ async function confirmEntrada(){
   if(!prodId||total===0){showToast('Completa todos los campos');return}
   S.inv[prodId]=(S.inv[prodId]||0)+total; addProdLote(prodId,total,0);
   const p=INV.find(x=>x.id===prodId);
-  addHist('entrada',p.n,weights,S.users.entrada);
+  const h=addHist('entrada',p.n,weights,S.users.entrada);
   saveS();
-  await saveInvToDB(prodId);
-  await saveHistToDB({tipo:'entrada',nombre:p.n,weights,user:S.users.entrada,total});
+  const okInv=await saveInvToDB(prodId);
+  h.cat=await saveHistToDB({tipo:'entrada',nombre:p.n,weights,user:S.users.entrada,total});
+  saveS();
   closeM('mEntrada');renderInv();
-  showToast('✓ +'+total+'g de '+p.n+' — guardado en nube');
+  if(okInv&&h.cat) showToast('✓ +'+total+'g de '+p.n+' — guardado en nube');   // si falló, se queda el aviso de avisoNube
 }
 
 async function confirmSalida(){
@@ -3241,12 +3265,13 @@ async function confirmSalida(){
   if(peso>cur){showToast('No hay suficiente stock');return}
   S.inv[S._salidaId]=cur-peso; consumirProdLote(S._salidaId,peso);
   const p=INV.find(x=>x.id===S._salidaId);
-  addHist('salida',p.n,[peso],S.users.salida);
+  const h=addHist('salida',p.n,[peso],S.users.salida);
   saveS();
-  await saveInvToDB(S._salidaId);
-  await saveHistToDB({tipo:'salida',nombre:p.n,weights:[peso],user:S.users.salida,total:peso});
+  const okInv=await saveInvToDB(S._salidaId);
+  h.cat=await saveHistToDB({tipo:'salida',nombre:p.n,weights:[peso],user:S.users.salida,total:peso});
+  saveS();
   closeM('mSalida');renderInv();
-  showToast('✓ −'+peso+'g de '+p.n+' — guardado en nube');
+  if(okInv&&h.cat) showToast('✓ −'+peso+'g de '+p.n+' — guardado en nube');
 }
 
 // ================================================================
@@ -3871,8 +3896,8 @@ function openInsumoDetalle(id){
 
 async function saveInsumosToDB(id){
   const sb=getSB();if(!sb)return;
-  try{ await sb.from('fondo_insumos').upsert({id,stock:S.insumos[id]}); }
-  catch(e){console.warn('ins DB err:',e.message);}
+  try{ const {error}=await sb.from('fondo_insumos').upsert({id,stock:S.insumos[id]}); if(error) throw error; }
+  catch(e){ avisoNube('insumos', e); }
 }
 
 // ================================================================
@@ -3972,7 +3997,7 @@ async function confirmReg(){
   if(invId&&S.inv[invId]!==undefined){ S.inv[invId]=(S.inv[invId]||0)+total; if(total>0&&_costoLote>0) addProdLote(invId,total,_costoLote/total); }
   registrarProduccion(rk,total,_costoLote);
   const nota=document.getElementById('mRegNota')?.value?.trim()||'';
-  addHist('entrada',R[rk].name,weights,S.users.reg,nota);
+  const h=addHist('entrada',R[rk].name,weights,S.users.reg,nota);
   // Descontar insumos (FIFO por lotes)
   calcConsumo(rk).forEach(c=>{
     S.insumos[c.id]=Math.max(0,(S.insumos[c.id]||0)-c.need);
@@ -3981,13 +4006,14 @@ async function confirmReg(){
     S.insHist.unshift({tipo:'salida',nombre:insData?.n||c.id,weights:[c.need],user:S.users.reg,total:c.need,ref:`Receta: ${R[rk].name} · costo ${fmtM(costo,2)}`,time:new Date().toLocaleString('es-MX')});
   });
   await saveS();
-  if(invId)await saveInvToDB(invId);
-  await saveHistToDB({tipo:'entrada',nombre:R[rk].name,weights,user:S.users.reg,total,nota});
+  const okInv=invId?await saveInvToDB(invId):true;
+  h.cat=await saveHistToDB({tipo:'entrada',nombre:R[rk].name,weights,user:S.users.reg,total,nota});
+  saveS();
   calcConsumo(rk).forEach(c=>saveInsumosToDB(c.id));
   const notaEl=document.getElementById('mRegNota'); if(notaEl) notaEl.value='';
   clearGuideProgress();
   closeM('mReg');
-  showToast(`✓ ${fmtQ(total,unitOfInv(invId))} registrado — insumos descontados`);
+  if(okInv&&h.cat) showToast(`✓ ${fmtQ(total,unitOfInv(invId))} registrado — insumos descontados`);
   renderDash();renderInsumos();updateAlertPill();
 }
 
@@ -4915,9 +4941,15 @@ function updateVentaTotals(){
       <div class="tk-total"><span>Utilidad</span><span style="color:${t.utilidad>=0?'#1f5c3f':'#8a1e1e'}">${fmtM(t.utilidad,2)}</span></div>
     </div>`;
 }
+let _ventaGuardando=false;   // evita registrar dos veces con doble toque
 async function confirmVenta(){
+  if(_ventaGuardando) return;
   const t=ventaCalc();
   if(t.totalBags===0 && t.papas===0 && t.extra===0){ showToast('Agrega al menos un producto'); return; }
+  _ventaGuardando=true;
+  try{ await registrarVenta(t); }finally{ _ventaGuardando=false; }
+}
+async function registrarVenta(t){
   const bolsas=parseInt(document.getElementById('ventaBolsas')?.value)||0;
   const gramajes=S.bagGramajes||DEFAULT_BAG_GRAMAJES;
   const items={}; const touched={inv:new Set(),ins:new Set()}; const pcfg=papasCfg();
@@ -4968,21 +5000,36 @@ async function confirmVenta(){
 }
 
 // ----- Sincronización resiliente de ventas y empaques -----
+// Ventas que no se pudieron subir: se guardan aparte en este dispositivo y se reintentan en cada sincronización,
+// así la recarga de cada 30 s no las borra.
+const VENTAS_PEND_KEY='fondo_ventas_pend';
+function ventasPend(){ try{ return JSON.parse(localStorage.getItem(VENTAS_PEND_KEY)||'[]'); }catch(e){ return []; } }
+function setVentasPend(a){ try{ localStorage.setItem(VENTAS_PEND_KEY,JSON.stringify(a)); }catch(e){} }
+async function insertVenta(sb,v){
+  const { error } = await sb.from('fondo_ventas').insert({
+    plataforma:v.plat, items:v.items, bolsas:v.bolsas,
+    bruto:v.bruto, comision:v.comision, neto:v.neto, costo:v.costo, utilidad:v.utilidad, usuario:v.user,
+    created_at:new Date(v.ts).toISOString()   // la hora real de la venta, aunque se suba después
+  });
+  if(error) throw error;
+}
 async function saveVentaToDB(v){
-  const sb=getSB(); if(!sb) return;
-  try{
-    const { error } = await sb.from('fondo_ventas').insert({
-      plataforma:v.plat, items:v.items, bolsas:v.bolsas,
-      bruto:v.bruto, comision:v.comision, neto:v.neto, costo:v.costo, utilidad:v.utilidad, usuario:v.user
-    });
-    if(error) console.warn('SB ventas (¿falta tabla fondo_ventas?):', error.message);
-  }catch(e){ console.warn('SB ventas error:', e.message); }
+  const sb=getSB();
+  try{ if(!sb) throw new Error('sin conexión'); await insertVenta(sb,v); }
+  catch(e){ setVentasPend(ventasPend().concat(v)); avisoNube('venta (queda guardada aquí y se reintenta sola)', e); }
+}
+async function subirVentasPend(){
+  const sb=getSB(), pend=ventasPend(); if(!sb||!pend.length) return;
+  const quedan=[];
+  for(const v of pend){ try{ await insertVenta(sb,v); }catch(e){ quedan.push(v); } }
+  setVentasPend(quedan);
+  if(quedan.length<pend.length) showToast('✓ '+(pend.length-quedan.length)+' venta(s) pendiente(s) subida(s)');
 }
 async function saveEmpaqueToDB(id){
   const sb=getSB(); if(!sb) return;
   try{
     const { error } = await sb.from('fondo_empaques').upsert({id, stock:Math.round(S.empaqueStock[id]||0)});
-    if(error) console.warn('SB empaques (¿falta tabla fondo_empaques?):', error.message);
+    if(error){ if(['42P01','PGRST205'].includes(error.code)) console.warn('SB empaques (falta tabla fondo_empaques):', error.message); else avisoNube('empaques', error); }
   }catch(e){ console.warn('SB empaques error:', e.message); }
 }
 
