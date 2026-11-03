@@ -2038,7 +2038,7 @@ const PIECE_IDS = ['pan'];
 const DEFAULT_PLATFORMS = [
   {k:'base',n:'Directo',comm:0,color:'#c9a24b',fixed:true},
   {k:'rappi',n:'Rappi',comm:0.30,color:'#ff441f'},
-  {k:'uber',n:'Uber Eats',comm:0.30,color:'#06c167'},
+  {k:'uber',n:'Uber Eats',comm:0.25,color:'#06c167'},
   {k:'didi',n:'Didi Food',comm:0.30,color:'#ff8a00'},
 ];
 // Plataformas activas (editables en Configuración). PLATFORMS queda como alias dinámico.
@@ -2051,7 +2051,7 @@ const DEFAULT_SALE_PRICES = {
 };
 const PAPAS_PRICE = {base:55, extraSalsa:15};
 // Comisiones por plataforma (fracción) — editables en Config
-const DEFAULT_COMMISSIONS = {base:0, rappi:0.30, uber:0.30, didi:0.30, pickup:0.10};
+const DEFAULT_COMMISSIONS = {base:0, rappi:0.30, uber:0.25, didi:0.30, pickup:0.10};
 // Empaques — precio por PIEZA; porBag = piezas por baguette; porPapas = piezas por orden de papas
 const DEFAULT_EMPAQUES = [
   {id:'caja_baguette',n:'Caja de Baguette',precio:7,porBag:1,porPapas:0},
@@ -4062,7 +4062,8 @@ function openDetalle(id){
 // ================================================================
 function getEmpaques(){ return (S.empaques && S.empaques.length) ? S.empaques : DEFAULT_EMPAQUES; }
 function getSalePrice(bagKey,plat){ if(S.salePrices&&S.salePrices[bagKey]&&S.salePrices[bagKey][plat]!=null) return S.salePrices[bagKey][plat]; const d=DEFAULT_SALE_PRICES[bagKey]||{}; if(d[plat]!=null) return d[plat]; const base=(S.salePrices&&S.salePrices[bagKey]&&S.salePrices[bagKey].base!=null)?S.salePrices[bagKey].base:(d.base||0); return plat==='base'?base:Math.round(base*(1+(finCfg().sobre||0)/100)/10)*10; }
-function getCommission(plat){ if(S.commissions&&S.commissions[plat]!=null) return S.commissions[plat]; const p=getPlatforms().find(x=>x.k===plat); return p?(p.comm||0):(DEFAULT_COMMISSIONS[plat]||0); }
+// Manda la comisión de la plataforma (la que se edita en Configuración); "commissions" queda solo de respaldo
+function getCommission(plat){ const p=getPlatforms().find(x=>x.k===plat); if(p&&p.comm!=null) return p.comm; if(S.commissions&&S.commissions[plat]!=null) return S.commissions[plat]; return DEFAULT_COMMISSIONS[plat]||0; }
 
 // Costo por gramo de un producto final preparado (considera merma vía rendPct)
 // Lotes de producto final: {g, cpg, ts}. Costo = lote más viejo con stock; sin lotes → costo de receta con insumos FIFO
@@ -4725,7 +4726,11 @@ function _ensurePlatforms(){ if(!S.platforms||!S.platforms.length) S.platforms=J
 function savePlatformField(i,field,val){
   if(!puedeEditarCostos()) return renderSalePricesEditor();
   _ensurePlatforms();
-  if(field==='comm') S.platforms[i].comm=(parseFloat(val)||0)/100;
+  if(field==='comm'){
+    S.platforms[i].comm=(parseFloat(val)||0)/100;
+    // La lista vieja de comisiones se mantiene igual para que no se contradigan
+    S.commissions={...(S.commissions||DEFAULT_COMMISSIONS),[S.platforms[i].k]:S.platforms[i].comm}; subirCfgCosto('commissions');
+  }
   else S.platforms[i][field]=val;
   if(field==='n'){ S.platforms[i].k = S.platforms[i].k; } // la clave no cambia para no romper ventas pasadas
   saveS(); subirCfgCosto('platforms');
@@ -5788,9 +5793,8 @@ function applyPriceBookV4(){
   // Canales: Directo, Rappi, Uber Eats, Didi · comisión 30 %
   const OLD={dip:{base:240,rappi:280,uber:275,pickup:240},entrecot:{base:230,rappi:260,uber:250,pickup:230},poivre:{base:230,rappi:260,uber:250,pickup:240},vodka:{base:210,rappi:250,uber:240,pickup:220},pulledpork:{base:210,rappi:250,uber:240,pickup:220}};
   if(S.salePrices){ Object.keys(OLD).forEach(b=>{ const cur=S.salePrices[b]; if(!cur) return; Object.keys(OLD[b]).forEach(pl=>{ if(cur[pl]===OLD[b][pl]) delete cur[pl]; }); }); }
-  if(S.commissions&&S.commissions.uber===0.25) delete S.commissions.uber;
+  // (Ya no se fuerza Uber a 30 %: la comisión real es 25 % y se respeta la de Configuración)
   if(S.platforms&&S.platforms.length){
-    S.platforms.forEach(p=>{ if(p.k==='uber'&&p.comm===0.25) p.comm=0.30; });
     if(!S.platforms.some(p=>p.k==='didi')) S.platforms.push({k:'didi',n:'Didi Food',comm:0.30,color:'#ff8a00'});
   }
   // Nombres de papas y empaques
