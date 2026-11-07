@@ -2327,13 +2327,13 @@ async function initSB(){
       const {data:vts,error:eV}=await sb.from('fondo_ventas').select('*').order('created_at',{ascending:false}).limit(500);
       if(!eV&&vts){
         // Lo que descontó cada venta registrada aquí (no está en la nube): se conserva al recargar
-        const descPrev=new Map((S.ventas||[]).filter(v=>v.desc).map(v=>[v.ts,v.desc]));
+        const descPrev=new Map((S.ventas||[]).filter(v=>v.desc).map(v=>[v.orden?v.plat+'#'+v.orden:v.plat+'@'+v.ts,v.desc]));
         const todas=vts.map(v=>({
-          desc:descPrev.get(v.created_at?new Date(v.created_at).getTime():0),
+          desc:descPrev.get(v.orden?v.plataforma+'#'+v.orden:v.plataforma+'@'+(v.created_at?new Date(v.created_at).getTime():0)),
           plat:v.plataforma, items:v.items||{}, bolsas:v.bolsas||0, orden:v.orden||'',
           bruto:v.bruto, comision:v.comision, neto:v.neto, costo:v.costo, utilidad:v.utilidad,
           user:v.usuario, ts:v.created_at?new Date(v.created_at).getTime():Date.now(), cat:v.created_at||null,
-          anulada:!!v.anulada, anuladaPor:v.anulada_por||'', motivoAnul:v.motivo_anulacion||'',
+          anulada:!!v.anulada, anuladaPor:v.anulada_por||'', motivoAnul:v.motivo_anulacion||'', invDesc:v.inventario_descontado!==false,
           time:new Date(v.created_at).toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+new Date(v.created_at).toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})
         }));
         // Las anuladas no cuentan en ningún reporte; se guardan aparte solo para mostrarlas en Ventas
@@ -3741,9 +3741,11 @@ function invMov(tipo,id){
     tipo==='conteo'?`<div style="font-size:13px;color:var(--text2);margin-bottom:8px">Teórico (suma de movimientos): <b style="color:var(--crema)">${fmtQ(teo,u)}</b></div>${inp('q','Lo que contaste ('+u+')','')}<div style="font-size:12px;color:var(--text3)">Se guarda un movimiento por la diferencia y se muestra la desviación contra el teórico.</div>`
     :tipo==='merma'?`${inp('q','Cantidad que se tiró ('+u+')','')}<div class="inp-group"><label class="lbl">Motivo</label><input type="text" id="im_motivo" placeholder="Caducó, se quemó, se cayó…"></div>`
     :inp('lt','Lead time (días que tarda en llegar)',pr.lt)+inp('seg','Días de seguridad',pr.seg)+inp('max','Nivel máximo (días de consumo)',pr.max)+inp('vida','Vida útil (días) · tope por caducidad',pr.vida,'sin tope')+inp('manual',`Consumo diario manual (${u}) · respaldo con menos de 3 días de ventas`,pr.manual,'—');
+  document.getElementById('invMovBtn').textContent='Guardar';
   openM('mInvMov');
 }
 async function invMovConfirmar(){
+  if(_invMov&&_invMov.tipo==='restar'){ _invMov=null; closeM('mInvMov'); return restarPendientes(); }
   if(!_invMov) return; const {tipo,id}=_invMov, p=INSUMOS.find(x=>x.id===id), v=k=>{ const e=document.getElementById('im_'+k); return e&&e.value!==''?parseFloat(e.value):null; };
   if(tipo==='conteo'){
     const q=v('q'); if(q==null||q<0) return showToast('Escribe lo que contaste.');
@@ -5380,9 +5382,13 @@ async function insertVenta(sb,v){
     bruto:v.bruto, comision:v.comision, neto:v.neto, costo:v.costo, utilidad:v.utilidad, usuario:v.user,
     created_at:new Date(v.ts).toISOString()   // la hora real de la venta, aunque se suba después
   };
-  let { error } = await sb.from('fondo_ventas').insert(v.orden?{...fila,orden:v.orden}:fila);
-  // Si aún no se corre supabase/010 (sin columna "orden"), se guarda la venta sin el número para no perderla
-  if(error&&v.orden&&/orden/.test(error.message||'')) ({ error } = await sb.from('fondo_ventas').insert(fila));
+  if(v.orden) fila.orden=v.orden;
+  if(v.invDesc===false) fila.inventario_descontado=false;   // importada: su consumo aún no se resta (supabase/012)
+  let { error } = await sb.from('fondo_ventas').insert(fila);
+  // Sin supabase/012: no se puede dejar pendiente; se guarda y quien llama resta el inventario de una vez
+  if(error&&'inventario_descontado' in fila&&/inventario_descontado/.test(error.message||'')){ delete fila.inventario_descontado; v.invDesc=true; v.sin012=true; ({ error } = await sb.from('fondo_ventas').insert(fila)); }
+  // Sin supabase/010 (sin columna "orden"): se guarda la venta sin el número para no perderla
+  if(error&&fila.orden&&/orden/.test(error.message||'')){ delete fila.orden; ({ error } = await sb.from('fondo_ventas').insert(fila)); }
   if(error) throw error;
   v.cat=fila.created_at;
 }
@@ -5431,12 +5437,13 @@ async function anularVenta(i){
     try{
       const {data,error}=await sb.from('fondo_ventas')
         .update({anulada:true,anulada_por:S.activeUser||'',anulada_at:new Date().toISOString(),motivo_anulacion:motivo})
-        .eq('created_at',v.cat).eq('plataforma',v.plat).select('created_at');
+        .match(filtroVenta(v)).select('created_at');
       if(error) throw error;
       if(!data||!data.length) throw new Error('no se encontró en la nube');
     }catch(e){ return avisoNube(/anulada|motivo/.test(e.message||'')?'anulación (falta correr supabase/010)':'anulación (no se tocó el inventario)', e); }
   }
-  const touched=devolverInventarioVenta(v);
+  // Si su consumo nunca se restó (importada y pendiente), no hay nada que devolver
+  const touched=v.invDesc===false?{inv:new Set(),insMap:{}}:devolverInventarioVenta(v);
   S.ventas.splice(i,1);
   (S.ventasAnuladas=S.ventasAnuladas||[]).unshift({...v,anulada:true,anuladaPor:S.activeUser||'',motivoAnul:motivo});
   await saveS();
@@ -5552,9 +5559,15 @@ function importAnalizar(){
     else if(key!=='ignorar') p.items[key]=(p.items[key]||0)+q;
   });
   const ya=new Set((S.ventas||[]).concat(S.ventasAnuladas||[]).filter(v=>v.plat===IMPORT_DEF[plat].plat&&v.orden).map(v=>String(v.orden)));
-  const comPlat=getCommission(IMPORT_DEF[plat].plat);
+  const comPlat=getCommission(IMPORT_DEF[plat].plat), man=_imp.manual||{};
   pedidos.forEach(p=>{
     if(!p.total) p.total=p.totalItems;
+    // El archivo no trae productos (reporte de órdenes de Rappi): se usan los que se capturaron en la vista previa
+    if(!Object.keys(p.items).length&&!Object.keys(p.sinMapa).length){
+      const m=Object.fromEntries(Object.entries(man[p.folio]||{}).filter(([k,q])=>q>0));
+      if(Object.keys(m).length){ p.items=m; p.manual=true; }
+      p.captura=true;
+    }
     // Sin columna de comisión en el archivo: se estima con la comisión de la plataforma (Configuración) y se marca
     if(idx.comision<0){ p.comision=Math.round(p.total*comPlat*100)/100; p.comEst=true; }
     p.valido=!p.estado||ok.includes(normTxt(p.estado));
@@ -5577,17 +5590,32 @@ function importRender(){
   const sinMapa={}; ps.forEach(p=>Object.entries(p.sinMapa).forEach(([n,q])=>sinMapa[n]=(sinMapa[n]||0)+q));
   const opts=importOpciones();
   const mapaHtml=Object.keys(sinMapa).length?`<div class="lbl" style="margin-top:12px">Productos no reconocidos: asígnalos (se recuerda para la próxima)</div>${Object.entries(sinMapa).map(([n,q],i)=>`<div style="display:grid;grid-template-columns:1fr 180px;gap:8px;align-items:center;margin:5px 0"><span style="font-size:13px;color:var(--crema)">${costoEsc(n)} <span style="color:var(--text3)">× ${q}</span></span><select data-n="${costoEsc(normTxt(n))}" onchange="importMapear(this.dataset.n,this.value)"><option value="">— asignar —</option>${opts.map(([k,l])=>`<option value="${k}">${costoEsc(l)}</option>`).join('')}</select></div>`).join('')}`:'';
-  const est=p=>p.listo?'<span style="color:var(--verde-light)">listo</span>':p.duplicado?'<span style="color:var(--text3)">ya existe</span>':!p.valido?`<span style="color:var(--text3)">${costoEsc(p.estado)}</span>`:p.pend?'<span style="color:var(--dorado-light)">falta asignar</span>':p.sinProductos?'<span style="color:#ff8888">sin productos</span>':'<span style="color:#ff8888">sin fecha</span>';
+  const est=p=>p.listo?'<span style="color:var(--verde-light)">listo</span>':p.duplicado?'<span style="color:var(--text3)">ya existe</span>':!p.valido?`<span style="color:var(--text3)">${costoEsc(p.estado)}</span>`:p.pend?'<span style="color:var(--dorado-light)">falta asignar</span>':p.sinProductos?'<span style="color:var(--dorado-light)">captura productos</span>':'<span style="color:#ff8888">sin fecha</span>';
   const sinProd=ps.filter(p=>p.sinProductos&&p.valido&&!p.duplicado).length;
   const modif=ps.filter(p=>p.listo&&p.modif>0);
+  // Captura de productos para órdenes que el archivo trae sin detalle: baguettes activas + papas extra
+  const capt=[...activeBagKeys().map(k=>[k,BAG_NAMES[k]]),['papas','Papas extra']];
+  const precioRef=k=>BAG_NAMES[k]?getSalePrice(k,IMPORT_DEF[plat].plat):(k==='papas'?papasCfg().precioBase:0);
+  const celdaProd=p=>Object.entries(p.items).map(([k,q])=>`${q}× ${costoEsc(importNombre(k))}`).join(', ')||(p.captura&&p.valido&&!p.duplicado?'<span style="color:var(--dorado-light)">por capturar ↑</span>':'—');
+  // Una tarjeta por orden sin productos, con los campos en cuadrícula (cabe en el celular)
+  const porCapturar=ps.filter(p=>p.captura&&p.valido&&!p.duplicado);
+  const capturaHtml=porCapturar.map(p=>{
+    const m=(_imp.manual||{})[p.folio]||{}, suma=capt.reduce((s,[k])=>s+(m[k]||0)*precioRef(k),0), cuadra=Math.abs(suma-p.total)<1;
+    return `<div style="border:1px solid var(--border);border-radius:var(--r10);padding:10px;margin:8px 0;${p.listo?'border-color:rgba(93,186,138,.45)':''}">
+      <div style="display:flex;justify-content:space-between;gap:8px;font-size:12.5px"><b style="color:var(--crema)">#${costoEsc(p.folio)}</b><span style="color:var(--text2)">${p.fecha?p.fecha.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'} · <b style="color:var(--crema)">${fmtM(p.total,0)}</b></span></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:6px;margin-top:8px">${capt.map(([k,n])=>`<label style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-size:12px;color:var(--text2)">${costoEsc(n)}<input type="number" min="0" step="1" inputmode="numeric" value="${m[k]||''}" style="width:54px;padding:6px" onchange="importCaptura('${costoEsc(p.folio)}','${k}',this.value)"></label>`).join('')}</div>
+      ${suma>0?`<div style="font-size:11.5px;margin-top:6px;color:${cuadra?'var(--verde-light)':'var(--dorado-light)'}">a precio de hoy: ${fmtM(suma,0)} ${cuadra?'✓ cuadra':`· el total fue ${fmtM(p.total,0)} (revisa si hubo extras o si el precio era otro ese día)`}</div>`:''}
+    </div>`;
+  }).join('');
   el.innerHTML=platSel+colsHtml
     +`<div style="font-size:13px;color:var(--text2);margin-top:8px">${ps.length} pedidos · <b style="color:var(--verde-light)">${listos.length} listos</b> · ${ps.filter(p=>p.duplicado).length} ya existen · ${ps.filter(p=>!p.valido).length} no completados</div>`
     +mapaHtml
-    +(sinProd?`<div class="empty-note" style="margin-top:10px">${sinProd} pedido(s) no traen productos en este archivo: sin productos no se puede descontar inventario. Descarga el reporte con detalle de productos.</div>`:'')
+    +(porCapturar.length?`<div class="empty-note" style="margin-top:10px">Este archivo no trae productos (el reporte de órdenes de Rappi solo da total y estado). Captura cuántas baguettes llevó cada orden; las ves en el detalle de la orden en Rappi. Solo se importan las que captures. ${sinProd?`Faltan ${sinProd}.`:'✓ Todas capturadas.'}</div>${capturaHtml}`:'')
     +(modif.length?`<div class="empty-note" style="margin-top:10px">${modif.length} pedido(s) cobran modificadores que el reporte no detalla (${fmtM(modif.reduce((s,p)=>s+p.modif,0),0)}): se guarda el dinero, pero no se descuenta su inventario.</div>`:'')
-    +`<div style="overflow-x:auto;margin-top:12px"><table class="tbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th style="text-align:right">Total</th><th style="text-align:right">Comisión</th><th>Estado</th></tr></thead><tbody>${ps.map(p=>`<tr><td>${costoEsc(p.folio)}</td><td style="white-space:nowrap">${p.fecha?p.fecha.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}</td><td style="font-size:12px">${Object.entries(p.items).map(([k,q])=>`${q}× ${costoEsc(importNombre(k))}`).join(', ')||'—'}</td><td style="text-align:right">${fmtM(p.total,0)}</td><td style="text-align:right">${fmtM(p.comision,2)}${p.comEst?'<div style="font-size:10.5px;color:var(--text3)">estimada</div>':''}</td><td>${est(p)}</td></tr>`).join('')}</tbody></table></div>`;
+    +`<div style="overflow-x:auto;margin-top:12px"><table class="tbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th style="text-align:right">Total</th><th style="text-align:right">Comisión</th><th>Estado</th></tr></thead><tbody>${ps.map(p=>`<tr><td>${costoEsc(p.folio)}</td><td style="white-space:nowrap">${p.fecha?p.fecha.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}</td><td style="font-size:12px">${celdaProd(p)}</td><td style="text-align:right">${fmtM(p.total,0)}</td><td style="text-align:right">${fmtM(p.comision,2)}${p.comEst?'<div style="font-size:10.5px;color:var(--text3)">estimada</div>':''}</td><td>${est(p)}</td></tr>`).join('')}</tbody></table></div>`;
   btn.disabled=!listos.length; btn.textContent=listos.length?`Importar ${listos.length} venta(s)`:'Importar';
 }
+function importCaptura(folio,k,v){ const m=(_imp.manual=_imp.manual||{}); m[folio]={...(m[folio]||{}),[k]:Math.max(0,parseInt(v)||0)}; importRender(); }
 function importSetCol(k,v){ const c=S.importCfg=S.importCfg||{}; c.cols=c.cols||{}; c.cols[_imp.plat]={...(c.cols[_imp.plat]||{}),[k]:v}; saveS(); saveCfgToDB('importCfg',S.importCfg); importRender(); }
 function importMapear(nombre,key){ if(!key) return; const c=S.importCfg=S.importCfg||{}; c.prodMap={...(c.prodMap||{}),[nombre]:key}; saveS(); saveCfgToDB('importCfg',S.importCfg); importRender(); }
 // Costo de los productos de una venta con el costeo actual (un extra sin gramaje no suma; queda como TODO)
@@ -5611,24 +5639,77 @@ async function importConfirmar(){
     const {data:ya,error:eYa}=await sb.from('fondo_ventas').select('orden').eq('plataforma',def.plat).in('orden',listos.map(p=>p.folio));
     if(eYa) throw eYa;
     const yaSet=new Set((ya||[]).map(r=>String(r.orden)));
-    let nuevos=0, repetidos=0, avisos=0;
+    // Las ventas entran SIN restar su consumo: al final se muestra el resumen y se pregunta si se resta del inventario
+    let nuevos=0, repetidos=0, restadas=0;
     for(const p of listos){
       if(yaSet.has(p.folio)){ repetidos++; continue; }
       const costo=costoItems(p.items), neto=p.total-p.comision;
-      const v={plat:def.plat,items:p.items,bolsas:0,orden:p.folio,bruto:p.total,comision:p.comision,neto,costo,utilidad:neto-costo,user:S.activeUser||'',ts:p.fecha.getTime(),
+      const v={plat:def.plat,items:p.items,bolsas:0,orden:p.folio,bruto:p.total,comision:p.comision,neto,costo,utilidad:neto-costo,user:S.activeUser||'',ts:p.fecha.getTime(),invDesc:false,
         time:p.fecha.toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+p.fecha.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})};
       try{ await insertVenta(sb,v); }
       catch(e){ if(e&&e.code==='23505'){ repetidos++; continue; } throw e; }   // folio repetido (supabase/011)
-      v.desc=aplicarConsumoVenta(p.items,0,`Venta ${def.n} #${p.folio} (importada)`);
-      if(v.desc.sinReceta.length||v.desc.sinGramaje.length) avisos++;
+      // Sin supabase/012 no se puede dejar pendiente: se resta de una vez, como antes
+      if(v.sin012){ v.desc=aplicarConsumoVenta(p.items,0,`Venta ${def.n} #${p.folio} (importada)`); restadas++; }
       S.ventas.unshift(v); nuevos++;
     }
     S.ventas.sort((x,y)=>y.ts-x.ts); await saveS();
     closeM('mImport');
-    showToast(`✓ ${nuevos} venta(s) importada(s)${repetidos?` · ${repetidos} ya existían`:''}${avisos?` · ${avisos} con extras sin gramaje`:''}`);
+    showToast(`✓ ${nuevos} venta(s) importada(s)${repetidos?` · ${repetidos} ya existían`:''}${restadas?' · restadas del inventario (falta correr supabase/012 para poder decidir)':''}`);
     renderVentas(); renderDash(); renderInv(); renderInsumos(); updateAlertPill();
+    if(ventasSinRestar().length) abrirConsumoPendiente();
   }catch(e){ avisoNube('importación de ventas',e); importRender(); }
   finally{ _importando=false; }
+}
+// Cómo encontrar UNA venta en la nube: por plataforma + número de orden (único, supabase/011). La hora no sirve sola:
+// Uber da la hora al minuto y dos pedidos pueden caer en el mismo minuto.
+function filtroVenta(v){ return v.orden?{plataforma:v.plat,orden:String(v.orden)}:{plataforma:v.plat,created_at:v.cat}; }
+// ----- Ventas importadas cuyo consumo aún no se resta del inventario -----
+function ventasSinRestar(){ return (S.ventas||[]).filter(v=>v&&v.invDesc===false&&v.cat); }
+// Resumen: cuántas baguettes fueron y qué se consumió (producto final, insumos directos y empaque). Es aproximado:
+// los modificadores sin detalle y los extras sin gramaje no se cuentan.
+function resumenConsumoHtml(vs){
+  const bag={}, otros={}, prod={}, dir={}, emp={}, avisos=new Set(), plat={};
+  vs.forEach(v=>{
+    plat[v.plat]=(plat[v.plat]||0)+1;
+    Object.entries(v.items||{}).forEach(([k,q])=>{ if(BAG_NAMES[k]) bag[k]=(bag[k]||0)+q; else otros[k]=(otros[k]||0)+q; });
+    const c=consumoVenta(v.items);
+    [[c.prod,prod],[c.directo,dir],[c.emp,emp]].forEach(([o,t])=>Object.entries(o).forEach(([id,q])=>t[id]=(t[id]||0)+q));
+    c.sinGramaje.concat(c.sinReceta).forEach(x=>avisos.add(x));
+  });
+  const nb=Object.values(bag).reduce((s,x)=>s+x,0);
+  const fila=(n,txt)=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px solid var(--border);font-size:13px"><span style="color:var(--text2)">${costoEsc(n)}</span><b style="color:var(--crema);white-space:nowrap">${txt}</b></div>`;
+  const orden=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]);
+  return `<div style="font-size:14px;color:var(--text2);margin-bottom:10px">${vs.length} venta(s) (${Object.entries(plat).map(([k,n])=>`${costoEsc(ventaPlatName(k))} ${n}`).join(' · ')}): <b style="color:var(--dorado-light);font-size:18px">${nb} baguettes</b></div>
+    ${orden(bag).map(([k,q])=>fila(BAG_NAMES[k],q)).join('')}
+    ${orden(otros).map(([k,q])=>fila(importNombre(k),q)).join('')}
+    <div class="lbl" style="margin-top:14px">Producto final que salió</div>
+    ${orden(prod).map(([id,q])=>fila((INV.find(p=>p.id===id)||{}).n||id,fmtCant(q,unitOfInv(id)))).join('')||'<div class="empty-note">—</div>'}
+    <div class="lbl" style="margin-top:14px">Insumos directos (aprox.)</div>
+    ${orden(dir).map(([id,q])=>fila(insName(id),fmtCant(q,unitOfIns(id)))).join('')}
+    ${orden(emp).map(([id,q])=>fila((getEmpaques().find(e=>e.id===id)||{}).n||id,fmtCant(q,'pza'))).join('')}
+    ${avisos.size?`<div class="empty-note" style="margin-top:10px">No se cuenta (sin gramaje o sin receta): ${[...avisos].map(costoEsc).join('; ')}.</div>`:''}
+    <div style="font-size:12px;color:var(--text3);margin-top:8px">Los insumos crudos de las sub-recetas (vacío crudo, crema, echalote…) no se restan aquí: se restan al producir en el Recetario.</div>`;
+}
+function abrirConsumoPendiente(){
+  const vs=ventasSinRestar(); if(!vs.length) return showToast('No hay ventas pendientes de restar.');
+  document.getElementById('invMovTitle').textContent='Consumo de las ventas importadas';
+  document.getElementById('invMovBody').innerHTML=resumenConsumoHtml(vs)+`<div style="font-size:14px;color:var(--crema);margin-top:14px;font-weight:600">¿Quieres que lo reste del inventario?</div>`;
+  _invMov={tipo:'restar'};
+  const b=document.getElementById('invMovBtn'); b.textContent='Sí, restar del inventario';
+  openM('mInvMov');
+}
+// Resta el consumo de todas las ventas pendientes y las marca como restadas en la nube
+async function restarPendientes(){
+  const vs=ventasSinRestar(), sb=getSB(); if(!vs.length) return; if(!sb) return showToast('Sin conexión.');
+  let ok=0;
+  for(const v of vs){
+    const {data,error}=await sb.from('fondo_ventas').update({inventario_descontado:true}).match(filtroVenta(v)).select('created_at');
+    if(error||!data||!data.length){ avisoNube('marcar venta como restada (no se tocó su inventario)',error||new Error('no se encontró en la nube')); continue; }
+    v.desc=aplicarConsumoVenta(v.items,v.bolsas||0,`Venta ${ventaPlatName(v.plat)}${v.orden?' #'+v.orden:''} (importada)`); v.invDesc=true; ok++;
+  }
+  await saveS();
+  showToast(`✓ Restado del inventario: ${ok} venta(s)`);
+  renderVentas(); renderDash(); renderInv(); renderInsumos(); updateAlertPill();
 }
 async function subirVentasPend(){
   const sb=getSB(), pend=ventasPend(); if(!sb||!pend.length) return;
@@ -5657,7 +5738,10 @@ function renderVentas(){
   const netoTotal=S.ventas.reduce((s,v)=>s+v.neto,0);
   const utilTotal=S.ventas.reduce((s,v)=>s+v.utilidad,0);
   const res=document.getElementById('ventasResumen');
-  if(res) res.innerHTML=`
+  const pend=ventasSinRestar();
+  if(res) res.innerHTML=(pend.length?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:rgba(232,180,80,.08);border:1px solid rgba(232,180,80,.35);border-radius:var(--r10);padding:12px;margin-bottom:12px">
+      <span style="font-size:13px;color:var(--text2)"><b style="color:var(--dorado-light)">${pend.length} venta(s) importada(s)</b> sin restar del inventario</span>
+      <button class="btn btn-outline btn-sm" onclick="abrirConsumoPendiente()">Ver consumo y restar</button></div>`:'')+`
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:11px">
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r10);padding:14px;text-align:center">
         <div style="font-family:var(--serif);font-size:26px;font-weight:600;color:var(--dorado-light)">${ventasHoy.length}</div>
