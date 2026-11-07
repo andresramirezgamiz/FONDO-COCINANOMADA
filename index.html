@@ -1224,7 +1224,7 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
 <div class="modal">
   <div class="modal-title">Importar ventas <button class="modal-close" onclick="closeM('mImport')">✕</button></div>
   <p style="font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:10px">Sube el reporte en CSV de Uber Eats o Rappi. Revisa la vista previa y confirma. Solo se guardan producto, cantidad, fecha, folio, total y comisión: nunca nombre, teléfono ni dirección del cliente. Subir el mismo archivo dos veces no duplica ventas.</p>
-  <input type="file" id="importFile" accept=".csv,text/csv" onchange="importLeerArchivo(this)">
+  <input type="file" id="importFile" accept=".csv,.xlsx,.xls,text/csv" onchange="importLeerArchivo(this)">
   <div id="importPreview" style="margin-top:12px"></div>
   <div class="btn-row">
     <button class="btn btn-verde" id="importBtn" onclick="importConfirmar()" disabled>Importar</button>
@@ -3650,6 +3650,8 @@ function consumoOperacion(){
   dias.forEach(d=>porDia[d].forEach(v=>{
     const c=consumoVenta(v.items);
     Object.entries(c.ins).forEach(([id,q])=>tot[id]=(tot[id]||0)+q);
+    Object.entries(c.directo).forEach(([id,q])=>tot['dir:'+id]=(tot['dir:'+id]||0)+q);
+    Object.entries(c.prod).forEach(([id,q])=>tot['prod:'+id]=(tot['prod:'+id]||0)+q);
     Object.entries(c.emp).forEach(([id,q])=>tot['emp:'+id]=(tot['emp:'+id]||0)+q);
     c.sinReceta.concat(c.sinGramaje).forEach(x=>avisos.add(x));
   }));
@@ -3657,10 +3659,24 @@ function consumoOperacion(){
   return {diario,dias:dias.length,avisos:[...avisos]};
 }
 function fmtCant(q,u){ q=+q||0; if(u==='pza') return fmtN(Math.ceil(q-0.001),0)+' pza'; if(Math.abs(q)>=1000) return fmtN(q/1000,2)+(u==='ml'?' L':' kg'); return fmtN(q,0)+' '+(u||'g'); }
+// Consumo diario de un insumo crudo para comprar: lo que va directo a la baguette, más lo que pide cada sub-receta
+// SOLO por lo que falta producir en el horizonte (días de nivel máximo). Si ya hay producto preparado que alcanza
+// (p. ej. mantequilla para 25 días), sus crudos no se piden hoy.
+function consumoCompra(id,op,H,cachePG){
+  let c=op.diario['dir:'+id]||0;
+  Object.keys(op.diario).forEach(k=>{
+    if(!k.startsWith('prod:')) return;
+    const pid=k.slice(5), rk=PROD_TO_RECIPE[pid]; if(!rk) return;
+    const pg=cachePG[rk]||(cachePG[rk]=perGramoReceta(rk)||{}); if(!pg[id]) return;
+    const falta=Math.max(0,op.diario[k]*H-Math.max(0,S.inv[pid]||0));
+    c+=pg[id]*falta/H;
+  });
+  return c;
+}
 function filasReorden(){
-  const op=consumoOperacion(), out=[];
+  const op=consumoOperacion(), out=[], cachePG={};
   const fila=(key,id,n,u,stock,param,pack,prov)=>{
-    const calc=op.diario[key]||0, pocos=op.dias<3;
+    const calc=key.startsWith('emp:')?(op.diario[key]||0):consumoCompra(id,op,Math.max(1,param.max),cachePG), pocos=op.dias<3;
     const cd=pocos&&param.manual!=null?param.manual:calc;
     const fuente=pocos?(param.manual!=null?'manual':(calc>0?'pocos días':'sin datos')):`${op.dias} días`;
     const reorden=cd*(param.lt+param.seg);
@@ -3673,7 +3689,9 @@ function filasReorden(){
   INSUMOS.forEach(p=>{
     if(insOculto(p.id)&&!(op.diario[p.id]>0)) return;
     if(!(op.diario[p.id]>0)&&!insIsActive(p.id)&&!(S.insumos[p.id])) return;
-    fila(p.id,p.id,p.n,p.u,S.insumos[p.id]||0,insParam(p.id),insPres(p.id),storeOf(p.id));
+    // Se redondea a la presentación solo si es real (capturada en una compra o definida); si no, cantidad exacta
+    const pack=(S.insPres&&S.insPres[p.id]>0)?S.insPres[p.id]:(INS_PRES_DEFAULT[p.id]||(p.u==='pza'?1:0));
+    fila(p.id,p.id,p.n,p.u,S.insumos[p.id]||0,insParam(p.id),pack,storeOf(p.id));
   });
   getEmpaques().forEach(e=>{ if(!(op.diario['emp:'+e.id]>0)&&!(e.porBag>0)) return; fila('emp:'+e.id,e.id,e.n,'pza',S.empaqueStock[e.id]||0,{...REORDEN_DEF,vida:null,manual:null},1,'Empaque'); });
   const ord={rojo:0,amarillo:1,verde:2,gris:3};
@@ -4222,14 +4240,23 @@ async function confirmReg(){
   if(total===0){showToast('Ingresa los pesos');return;}
   const rk=S.guide.recKey||S.currentRec;
   if(!rk){showToast('Sin receta seleccionada');return;}
-  // Los insumos crudos ya no se descuentan al producir: los descuenta cada venta expandiendo la receta
-  // (movimientos "venta_teorica"). Descontarlos también aquí los contaría dos veces.
+  // Estricto: si faltan insumos, primero se registran
+  if(faltantesReg(rk).length){ openFaltan(rk); return; }
   const invId=R[rk].invId;
   let _costoLote=0; calcConsumo(rk).forEach(c=>{ _costoLote+=c.need*insFifoPrecio(c.id)/pdiv(c.id); });   // costo FIFO antes de descontar
   if(invId&&S.inv[invId]!==undefined){ S.inv[invId]=(S.inv[invId]||0)+total; if(total>0&&_costoLote>0) addProdLote(invId,total,_costoLote/total); }
   registrarProduccion(rk,total,_costoLote);
   const nota=document.getElementById('mRegNota')?.value?.trim()||'';
   const h=addHist('entrada',R[rk].name,weights,S.users.reg,nota);
+  // Producir gasta los insumos crudos de la receta (lotes FIFO + movimiento de inventario). La venta descuenta después
+  // el producto preparado, no estos crudos: así no se cuentan dos veces.
+  const usados={};
+  calcConsumo(rk).forEach(c=>{
+    usados[c.id]=c.need;
+    const costo=consumirLotes(c.id,c.need), insData=INSUMOS.find(x=>x.id===c.id);
+    S.insHist.unshift({tipo:'salida',nombre:insData?.n||c.id,weights:[c.need],user:S.users.reg,total:c.need,ref:`Receta: ${R[rk].name} · costo ${fmtM(costo,2)}`,time:new Date().toLocaleString('es-MX')});
+  });
+  await movInsumos(usados,-1,'ajuste',`Producción: ${R[rk].name} (${fmtQ(total,unitOfInv(invId))})`);
   await saveS();
   const okInv=invId?await saveInvToDB(invId):true;
   h.cat=await saveHistToDB({tipo:'entrada',nombre:R[rk].name,weights,user:S.users.reg,total,nota});
@@ -4237,7 +4264,7 @@ async function confirmReg(){
   const notaEl=document.getElementById('mRegNota'); if(notaEl) notaEl.value='';
   clearGuideProgress();
   closeM('mReg');
-  if(okInv&&h.cat) showToast(`✓ ${fmtQ(total,unitOfInv(invId))} registrado`);
+  if(okInv&&h.cat) showToast(`✓ ${fmtQ(total,unitOfInv(invId))} registrado — insumos descontados`);
   renderDash();renderInsumos();updateAlertPill();
 }
 
@@ -4349,11 +4376,17 @@ const VENTA_EXTRAS={
   papas_poivre:{n:'Papas con salsa Poivre',papas:'clasica',comps:[{id:'aupoivre',g:null}]},
   papas_mantequilla:{n:'Papas con mantequilla Café de París',papas:'clasica',comps:[{id:'mantequillaentrecot',g:null}]},
 };
-// Expande los productos de una venta: producto preparado (prod), insumos crudos (ins), empaque (emp) y lo que no tiene receta
+// Expande los productos de una venta:
+//   prod    = producto preparado que sale (vacío, salsas, mayos…): es lo que la venta descuenta del producto final
+//   directo = insumos que van directo a la baguette (pan, queso, arúgula, papas, contenedor, bolsa): la venta los descuenta
+//   ins     = TODOS los insumos crudos, expandiendo además las sub-recetas: solo para medir el consumo diario (reorden).
+//             Los crudos de una sub-receta se descuentan al PRODUCIRLA (Recetario → Terminé), no al venderla.
+//   emp     = empaque por pieza
 function consumoVenta(items){
-  const G=S.bagGramajes||DEFAULT_BAG_GRAMAJES, pc=papasCfg(), r={prod:{},ins:{},emp:{},sinReceta:[],sinGramaje:[]};
+  const G=S.bagGramajes||DEFAULT_BAG_GRAMAJES, pc=papasCfg(), r={prod:{},ins:{},directo:{},emp:{},sinReceta:[],sinGramaje:[]};
   const add=(o,id,q)=>{ if(q>0) o[id]=(o[id]||0)+q; };
-  const papas=(g,ver)=>{ const n=papasNeeds(g,ver); Object.keys(n).forEach(id=>add(r.ins,id,n[id])); };
+  const dir=(id,q)=>{ add(r.ins,id,q); add(r.directo,id,q); };
+  const papas=(g,ver)=>{ const n=papasNeeds(g,ver); Object.keys(n).forEach(id=>dir(id,n[id])); };
   const comp=(id,g,origen)=>{
     if(!id||id==='nuevo') return;
     if(g==null){ r.sinGramaje.push(`${origen}: ${(INV.find(p=>p.id===id)||{}).n||id}`); return; }
@@ -4364,7 +4397,7 @@ function consumoVenta(items){
       if(pg) Object.keys(pg).forEach(i=>add(r.ins,i,pg[i]*g)); else r.sinReceta.push(`${origen}: ${id}`);
       return;
     }
-    if(INSUMOS.some(x=>x.id===id)) return add(r.ins,id,g);
+    if(INSUMOS.some(x=>x.id===id)) return dir(id,g);
     r.sinReceta.push(`${origen}: ${id}`);
   };
   let bags=0, porc=0;
@@ -4485,22 +4518,24 @@ function ventasEntre(a,b){ return (S.ventas||[]).filter(v=>v&&v.ts>=a&&v.ts<b); 
 function bagsVendidas(vs){ const o={}; vs.forEach(v=>Object.keys(v.items||{}).forEach(k=>{ if(BAG_NAMES[k]) o[k]=(o[k]||0)+(v.items[k]||0); })); return o; }
 function sumaBags(o){ return Object.values(o).reduce((s,x)=>s+x,0); }
 // Baguettes que alcanzan con el stock actual: manda el componente que se acaba primero
+// Papas: el stock es de papa CONGELADA y el gramaje de la baguette es de papa FRITA (se convierte).
+// Un stock negativo (se vendió sin registrar la compra o el conteo) cuenta como 0 y se avisa en neg.
 function baguettesQuedan(bk){
   const need={};
   ((S.bagGramajes||DEFAULT_BAG_GRAMAJES)[bk]||[]).forEach(c=>{
     if(!c.id||c.id==='nuevo'||!(c.g>0)) return;
-    let key=null, stock=0, n=c.n||c.id;
-    if(PAPAS_COMP_IDS.includes(c.id)){ key='ins:papas'; stock=S.insumos.papas||0; n='Papas'; }
+    let key=null, stock=0, n=c.n||c.id, g=c.g;
+    if(PAPAS_COMP_IDS.includes(c.id)){ key='ins:papas'; stock=S.insumos.papas||0; n='Papas'; g=papasCongeladas(c.g); }
     else if(INV.some(p=>p.id===c.id)){ key='inv:'+c.id; stock=S.inv[c.id]||0; }
     else if(INSUMOS.some(p=>p.id===c.id)){ key='ins:'+c.id; stock=S.insumos[c.id]||0; }
     else if(INSUMOS.some(p=>p.id===c.id+'_raw')){ key='ins:'+c.id+'_raw'; stock=S.insumos[c.id+'_raw']||0; }
     if(!key) return;
     if(!need[key]) need[key]={g:0,stock,n};
-    need[key].g+=c.g;
+    need[key].g+=g;
   });
-  let q=Infinity, lim='';
-  Object.values(need).forEach(x=>{ const k=Math.floor(x.stock/x.g); if(k<q){ q=k; lim=x.n; } });
-  return q===Infinity?{q:null,lim:''}:{q,lim};
+  let q=Infinity, lim=''; const neg=[];
+  Object.values(need).forEach(x=>{ if(x.stock<0) neg.push(x.n); const k=Math.max(0,Math.floor(x.stock/x.g)); if(k<q){ q=k; lim=x.n; } });
+  return q===Infinity?{q:null,lim:'',neg}:{q,lim,neg};
 }
 function renderDashServicio(){
   const el=document.getElementById('dashServicio'); if(!el) return;
@@ -4528,7 +4563,7 @@ function renderDashProduccion(){
   const tVentas=activeBagKeys().map(k=>`<tr><td style="font-weight:700;color:var(--crema)">${BAG_NAMES[k]}</td><td style="text-align:center">${s1[k]||0}</td><td style="text-align:center;color:var(--text3)">${s0[k]||0}</td><td style="text-align:center">${m1[k]||0}</td><td style="text-align:center;color:var(--text3)">${m0[k]||0}</td></tr>`).join('');
   // Qué preparar: consumo por día de servicio (últimos 7 días ÷ 5) y cobertura hasta el domingo
   const dr=diasServicioRestantes();
-  const prod=INV.filter(p=>prodIsActive(p.id)).map(p=>{ const stk=S.inv[p.id]||0, porDia=dailyUse(p.id)*7/5; return {p,stk,porDia,cob:porDia>0?stk/porDia:null,falta:porDia>0?Math.max(0,porDia*dr-stk):0}; })
+  const op=consumoOperacion(); const prod=INV.filter(p=>prodIsActive(p.id)).map(p=>{ const stk=S.inv[p.id]||0, porDia=op.diario['prod:'+p.id]||0; return {p,stk,porDia,cob:porDia>0?stk/porDia:null,falta:porDia>0?Math.max(0,porDia*dr-stk):0}; })
     .filter(x=>x.porDia>0).sort((a,b)=>a.cob-b.cob);
   const tProd=prod.map(x=>`<tr><td style="color:var(--crema)">${costoEsc(x.p.n)}</td><td style="text-align:right">${fmtQ(x.stk,x.p.u)}</td><td style="text-align:right">${fmtQ(x.porDia,x.p.u)}</td><td style="text-align:center;color:${x.cob<dr?'#ff7a7a':'var(--crema)'}">${fmtN(x.cob,1)} d</td><td style="text-align:right;font-weight:700;color:${x.falta>0?'var(--dorado-light)':'var(--text3)'}">${x.falta>0?fmtQ(Math.ceil(x.falta),x.p.u):'—'}</td></tr>`).join('');
   // Baguettes por día de servicio: promedio de las 4 semanas anteriores
@@ -4544,7 +4579,7 @@ function renderDashProduccion(){
     <div class="lbl">Baguettes vendidas</div>
     <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Baguette</th><th style="text-align:center">Semana</th><th style="text-align:center">Sem. ant.</th><th style="text-align:center">Mes</th><th style="text-align:center">Mes ant.</th></tr></thead><tbody>${tVentas}</tbody></table></div>
     <div class="lbl" style="margin-top:16px">Qué preparar para llegar al domingo (${dr} día${dr>1?'s':''} de servicio)</div>
-    ${tProd?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Producto</th><th style="text-align:right">Stock</th><th style="text-align:right">Por día</th><th style="text-align:center">Alcanza</th><th style="text-align:right">Preparar</th></tr></thead><tbody>${tProd}</tbody></table></div><div style="font-size:12px;color:var(--text3);margin-top:4px">Por día = consumo de los últimos 7 días entre 5 días de servicio.</div>`:'<div class="empty-note">Aún no hay consumo registrado en los últimos 7 días.</div>'}
+    ${tProd?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Producto</th><th style="text-align:right">Stock</th><th style="text-align:right">Por día</th><th style="text-align:center">Alcanza</th><th style="text-align:right">Preparar</th></tr></thead><tbody>${tProd}</tbody></table></div><div style="font-size:12px;color:var(--text3);margin-top:4px">Por día = promedio por día de operación (solo días con ventas, últimos 7).</div>`:'<div class="empty-note">Aún no hay consumo registrado en los últimos 7 días.</div>'}
     <div class="lbl" style="margin-top:16px">Baguettes por día (promedio de 4 semanas)</div>${barras}
     <div class="lbl" style="margin-top:16px">Ventas por canal esta semana</div>
     ${tCanal?`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Canal</th><th style="text-align:center">Baguettes</th><th style="text-align:right">Venta</th></tr></thead><tbody>${tCanal}</tbody></table></div>`:'<div class="empty-note">Sin ventas esta semana.</div>'}`+equilibrioHtml();
@@ -5351,16 +5386,17 @@ async function saveVentaToDB(v){
   try{ if(!sb) throw new Error('sin conexión'); await insertVenta(sb,v); }
   catch(e){ setVentasPend(ventasPend().concat(v)); avisoNube('venta (queda guardada aquí y se reintenta sola)', e); }
 }
-// Descuenta lo que se llevó una venta: producto preparado (su stock y sus lotes), insumos crudos expandidos por receta
-// (movimientos "venta_teorica") y empaque. Devuelve lo descontado para poder anular exactamente eso.
+// Descuenta lo que se llevó una venta: producto preparado (su stock y sus lotes), insumos que van directo a la baguette
+// (movimientos "venta_teorica") y empaque. Los crudos de las sub-recetas NO: se descontaron al producirlas.
+// Devuelve lo descontado para poder anular exactamente eso.
 function aplicarConsumoVenta(items,bolsas,ref){
-  const c=consumoVenta(items), desc={inv:{},ins:c.ins,emp:{},sinReceta:c.sinReceta,sinGramaje:c.sinGramaje};
+  const c=consumoVenta(items), desc={inv:{},ins:c.directo,emp:{},sinReceta:c.sinReceta,sinGramaje:c.sinGramaje};
   Object.entries(c.prod).forEach(([id,g])=>{
     const antes=S.inv[id]||0; S.inv[id]=Math.max(0,antes-g); consumirProdLote(id,g);
     desc.inv[id]=antes-S.inv[id]; saveInvToDB(id);
   });
-  Object.entries(c.ins).forEach(([id,q])=>consumirLotes(id,q));   // lotes FIFO (costo real)
-  movInsumos(c.ins,-1,'venta_teorica',ref);
+  Object.entries(c.directo).forEach(([id,q])=>consumirLotes(id,q));   // lotes FIFO (costo real)
+  movInsumos(c.directo,-1,'venta_teorica',ref);
   const emp={...c.emp}; if(bolsas>0) emp.bolsa_pedido=(emp.bolsa_pedido||0)+bolsas;
   Object.entries(emp).forEach(([id,q])=>{
     const antes=S.empaqueStock[id]||0; S.empaqueStock[id]=Math.max(0,antes-q);
@@ -5371,7 +5407,7 @@ function aplicarConsumoVenta(items,bolsas,ref){
 // Devuelve al inventario lo que descontó una venta (v.desc si se registró en este dispositivo; si no, se recalcula
 // con las recetas actuales). Los insumos regresan como movimiento "ajuste"; los lotes FIFO no se reconstruyen.
 function devolverInventarioVenta(v){
-  const d=v.desc||(()=>{ const c=consumoVenta(v.items), emp={...c.emp}; if(v.bolsas) emp.bolsa_pedido=(emp.bolsa_pedido||0)+v.bolsas; return {inv:c.prod,ins:c.ins,emp}; })();
+  const d=v.desc||(()=>{ const c=consumoVenta(v.items), emp={...c.emp}; if(v.bolsas) emp.bolsa_pedido=(emp.bolsa_pedido||0)+v.bolsas; return {inv:c.prod,ins:c.directo,emp}; })();
   const touched={inv:new Set(),insMap:d.ins||{}};
   Object.entries(d.inv||{}).forEach(([id,q])=>{ if(q>0){ S.inv[id]=(S.inv[id]||0)+q; addProdLote(id,q,0); touched.inv.add(id); } });
   Object.entries(d.emp||{}).forEach(([id,q])=>{ S.empaqueStock[id]=(S.empaqueStock[id]||0)+q; });
@@ -5419,6 +5455,12 @@ const IMPORT_PRODMAP_DEF={'la paris':'entrecot','baguette vodka':'vodka','baguet
   'papas a la francesa con salsa poivre (sin licor)':'papas_poivre','papas a la francesa con mantequilla cafe de paris (extras)':'papas_mantequilla',
   'mantequilla cafe de paris (extra)':'extra_mantequilla','salsa tomate al vodk (extra)':'extra_salsavodka'};
 function normTxt(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/ /g,' ').replace(/\s+/g,' ').trim().toLowerCase(); }
+// Encabezado igual, tolerando acentos dañados en el archivo ("Fecha creaci�n" de Rappi): el carácter roto vale por cualquiera
+function colIgual(h,want){
+  const a=normTxt(h), b=normTxt(want); if(a===b) return true;
+  if(!a.includes('�')) return false;
+  return new RegExp('^'+a.split('�').map(s=>s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('.')+'$').test(b);
+}
 function importCfg(){ const c=S.importCfg||{}; return {cols:c.cols||{},prodMap:{...IMPORT_PRODMAP_DEF,...(c.prodMap||{})}}; }
 function importCols(plat){ return {...IMPORT_DEF[plat].cols,...(importCfg().cols[plat]||{})}; }
 function importOpciones(){
@@ -5460,20 +5502,30 @@ function openImportModal(){
 }
 function importLeerArchivo(inp){
   const file=inp.files&&inp.files[0]; if(!file) return;
-  const rd=new FileReader();
-  rd.onload=()=>{
-    const rows=parseCSV(rd.result||'');
-    if(rows.length<2){ document.getElementById('importPreview').innerHTML='<div class="empty-note">El archivo no tiene renglones.</div>'; return; }
+  const prev=document.getElementById('importPreview');
+  const listo=rows=>{
+    rows=(rows||[]).map(r=>r.map(x=>x==null?'':String(x))).filter(r=>r.some(x=>x.trim()!==''));
+    if(rows.length<2){ prev.innerHTML='<div class="empty-note">El archivo no tiene renglones.</div>'; return; }
     const head=rows[0].map(h=>String(h).replace(/ /g,' ').trim()), nh=head.map(normTxt);
-    const plat=Object.keys(IMPORT_DEF).find(p=>IMPORT_DEF[p].firma.every(c=>nh.includes(normTxt(c))))||'';
+    const plat=Object.keys(IMPORT_DEF).find(p=>IMPORT_DEF[p].firma.every(c=>head.some(h=>colIgual(h,c))))||'';
     _imp={head,rows:rows.slice(1),plat}; importRender();
   };
-  rd.readAsText(file,'utf-8');
+  const rd=new FileReader();
+  if(/\.xlsx?$/i.test(file.name)){
+    // Excel (Rappi): primera hoja, con la librería XLSX que ya carga la app
+    if(typeof XLSX==='undefined'){ prev.innerHTML='<div class="empty-note">Aún se está cargando el lector de Excel. Intenta en unos segundos.</div>'; inp.value=''; return; }
+    rd.onload=()=>{ try{ const wb=XLSX.read(new Uint8Array(rd.result),{type:'array'}); const ws=wb.Sheets[wb.SheetNames[0]]; listo(XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:''})); }
+      catch(e){ prev.innerHTML='<div class="empty-note">No pude leer el Excel: '+costoEsc(e.message)+'</div>'; } };
+    rd.readAsArrayBuffer(file);
+  } else {
+    rd.onload=()=>listo(parseCSV(rd.result||''));
+    rd.readAsText(file,'utf-8');
+  }
 }
 // Agrupa por pedido. Uber pone folio y totales en un renglón y los artículos debajo con el folio vacío.
 function importAnalizar(){
   const {head,rows,plat}=_imp, cols=importCols(plat), idx={};
-  Object.keys(cols).forEach(k=>{ const w=normTxt(cols[k]); idx[k]=w?head.findIndex(h=>normTxt(h)===w):-1; });
+  Object.keys(cols).forEach(k=>{ const w=normTxt(cols[k]); idx[k]=w?head.findIndex(h=>colIgual(h,cols[k])):-1; });
   const val=(r,k)=>idx[k]>=0?String(r[idx[k]]==null?'':r[idx[k]]).trim():'';
   const pm=importCfg().prodMap, ok=IMPORT_DEF[plat].ok, pedidos=[], porFolio={};
   let ultimo=null;
@@ -5495,8 +5547,11 @@ function importAnalizar(){
     else if(key!=='ignorar') p.items[key]=(p.items[key]||0)+q;
   });
   const ya=new Set((S.ventas||[]).concat(S.ventasAnuladas||[]).filter(v=>v.plat===IMPORT_DEF[plat].plat&&v.orden).map(v=>String(v.orden)));
+  const comPlat=getCommission(IMPORT_DEF[plat].plat);
   pedidos.forEach(p=>{
     if(!p.total) p.total=p.totalItems;
+    // Sin columna de comisión en el archivo: se estima con la comisión de la plataforma (Configuración) y se marca
+    if(idx.comision<0){ p.comision=Math.round(p.total*comPlat*100)/100; p.comEst=true; }
     p.valido=!p.estado||ok.includes(normTxt(p.estado));
     p.duplicado=ya.has(p.folio);
     p.pend=Object.keys(p.sinMapa).length>0;
@@ -5513,7 +5568,7 @@ function importRender(){
   if(!_imp.plat){ el.innerHTML=platSel+'<div class="empty-note">No reconocí el formato. Elige la plataforma y revisa las columnas.</div>'; btn.disabled=true; return; }
   const a=importAnalizar(), plat=_imp.plat, ps=a.pedidos, listos=ps.filter(p=>p.listo);
   const colsHtml=`<details style="margin:8px 0"><summary style="cursor:pointer;font-size:13px;color:var(--text2)">Columnas del archivo (${IMPORT_DEF[plat].n})</summary>
-    ${IMPORT_CAMPOS.map(([k,l])=>`<div style="display:grid;grid-template-columns:130px 1fr;gap:8px;align-items:center;margin:4px 0"><span style="font-size:12.5px;color:var(--text2)">${l}${a.idx[k]<0&&['folio','producto','total'].includes(k)?' ⚠':''}</span><select onchange="importSetCol('${k}',this.value)"><option value="">— no viene —</option>${_imp.head.map(h=>`<option ${a.cols[k]&&normTxt(h)===normTxt(a.cols[k])?'selected':''}>${costoEsc(h)}</option>`).join('')}</select></div>`).join('')}</details>`;
+    ${IMPORT_CAMPOS.map(([k,l])=>`<div style="display:grid;grid-template-columns:130px 1fr;gap:8px;align-items:center;margin:4px 0"><span style="font-size:12.5px;color:var(--text2)">${l}${a.idx[k]<0&&['folio','producto','total'].includes(k)?' ⚠':''}</span><select onchange="importSetCol('${k}',this.value)"><option value="">— no viene —</option>${_imp.head.map(h=>`<option ${a.cols[k]&&colIgual(h,a.cols[k])?'selected':''}>${costoEsc(h)}</option>`).join('')}</select></div>`).join('')}</details>`;
   const sinMapa={}; ps.forEach(p=>Object.entries(p.sinMapa).forEach(([n,q])=>sinMapa[n]=(sinMapa[n]||0)+q));
   const opts=importOpciones();
   const mapaHtml=Object.keys(sinMapa).length?`<div class="lbl" style="margin-top:12px">Productos no reconocidos: asígnalos (se recuerda para la próxima)</div>${Object.entries(sinMapa).map(([n,q],i)=>`<div style="display:grid;grid-template-columns:1fr 180px;gap:8px;align-items:center;margin:5px 0"><span style="font-size:13px;color:var(--crema)">${costoEsc(n)} <span style="color:var(--text3)">× ${q}</span></span><select data-n="${costoEsc(normTxt(n))}" onchange="importMapear(this.dataset.n,this.value)"><option value="">— asignar —</option>${opts.map(([k,l])=>`<option value="${k}">${costoEsc(l)}</option>`).join('')}</select></div>`).join('')}`:'';
@@ -5525,7 +5580,7 @@ function importRender(){
     +mapaHtml
     +(sinProd?`<div class="empty-note" style="margin-top:10px">${sinProd} pedido(s) no traen productos en este archivo: sin productos no se puede descontar inventario. Descarga el reporte con detalle de productos.</div>`:'')
     +(modif.length?`<div class="empty-note" style="margin-top:10px">${modif.length} pedido(s) cobran modificadores que el reporte no detalla (${fmtM(modif.reduce((s,p)=>s+p.modif,0),0)}): se guarda el dinero, pero no se descuenta su inventario.</div>`:'')
-    +`<div style="overflow-x:auto;margin-top:12px"><table class="tbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th style="text-align:right">Total</th><th style="text-align:right">Comisión</th><th>Estado</th></tr></thead><tbody>${ps.map(p=>`<tr><td>${costoEsc(p.folio)}</td><td style="white-space:nowrap">${p.fecha?p.fecha.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}</td><td style="font-size:12px">${Object.entries(p.items).map(([k,q])=>`${q}× ${costoEsc(importNombre(k))}`).join(', ')||'—'}</td><td style="text-align:right">${fmtM(p.total,0)}</td><td style="text-align:right">${fmtM(p.comision,2)}</td><td>${est(p)}</td></tr>`).join('')}</tbody></table></div>`;
+    +`<div style="overflow-x:auto;margin-top:12px"><table class="tbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th style="text-align:right">Total</th><th style="text-align:right">Comisión</th><th>Estado</th></tr></thead><tbody>${ps.map(p=>`<tr><td>${costoEsc(p.folio)}</td><td style="white-space:nowrap">${p.fecha?p.fecha.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}</td><td style="font-size:12px">${Object.entries(p.items).map(([k,q])=>`${q}× ${costoEsc(importNombre(k))}`).join(', ')||'—'}</td><td style="text-align:right">${fmtM(p.total,0)}</td><td style="text-align:right">${fmtM(p.comision,2)}${p.comEst?'<div style="font-size:10.5px;color:var(--text3)">estimada</div>':''}</td><td>${est(p)}</td></tr>`).join('')}</tbody></table></div>`;
   btn.disabled=!listos.length; btn.textContent=listos.length?`Importar ${listos.length} venta(s)`:'Importar';
 }
 function importSetCol(k,v){ const c=S.importCfg=S.importCfg||{}; c.cols=c.cols||{}; c.cols[_imp.plat]={...(c.cols[_imp.plat]||{}),[k]:v}; saveS(); saveCfgToDB('importCfg',S.importCfg); importRender(); }
@@ -5620,32 +5675,16 @@ function renderVentas(){
   // Proyección de surtibles
   const proy=document.getElementById('ventasProyeccion');
   if(proy){
-    const order=activeBagKeys();
-    const gramajes=S.bagGramajes||DEFAULT_BAG_GRAMAJES;
-    let totalUtil=0;
-    const rows=order.map(k=>{
-      const comps=(gramajes[k]||[]).filter(c=>c.id&&c.id!=='nuevo');
-      let maxBags=Infinity;
-      const need={};   // sumar lo que comparte el mismo stock (p.ej. papas de la caja + papas encima)
-      comps.forEach(c=>{
-        let key=null;
-        if(PAPAS_COMP_IDS.includes(c.id)) key='ins:papas';
-        else if(INV.find(p=>p.id===c.id)) key='inv:'+c.id;
-        else if(INSUMOS.find(x=>x.id===c.id)) key='ins:'+c.id;
-        if(key && c.g>0) need[key]=(need[key]||0)+c.g;
-      });
-      Object.keys(need).forEach(key=>{
-        const [t,id]=key.split(':'); const stock=t==='inv'?(S.inv[id]||0):(S.insumos[id]||0);
-        maxBags=Math.min(maxBags, Math.floor(stock/need[key]));
-      });
-      if(!isFinite(maxBags)) maxBags=0;
-      const util=maxBags*bagFin(k,'base').util;
-      totalUtil+=util;
-      return {k,maxBags,util};
+    // Misma cuenta que el tablero (baguettesQuedan): manda el componente que se acaba primero
+    let totalUtil=0; const negs=new Set();
+    const rows=activeBagKeys().map(k=>{
+      const r=baguettesQuedan(k), maxBags=r.q||0, util=maxBags*bagFin(k,'base').util;
+      r.neg.forEach(n=>negs.add(n)); totalUtil+=util;
+      return {k,maxBags,util,lim:r.lim};
     });
-    proy.innerHTML=rows.map(r=>`
+    proy.innerHTML=(negs.size?`<div class="empty-note" style="margin-bottom:8px">En negativo: ${[...negs].map(costoEsc).join(', ')}. Se vendió sin haber registrado su compra o conteo: haz un conteo en Insumos → Punto de reorden.</div>`:'')+rows.map(r=>`
       <div class="alert-list-item">
-        <div><div class="alert-prod">${BAG_NAMES[r.k]}</div><div class="alert-stock">utilidad potencial ${fmtM(r.util,0)} (precio directo)</div></div>
+        <div><div class="alert-prod">${BAG_NAMES[r.k]}</div><div class="alert-stock">${r.maxBags>0?`utilidad potencial ${fmtM(r.util,0)} (precio directo)`:`no alcanza: falta ${costoEsc(r.lim||'stock')}`}</div></div>
         <div style="font-family:var(--serif);font-size:22px;font-weight:600;color:${r.maxBags>0?'var(--dorado-light)':'#ff7a7a'}">${r.maxBags}</div>
       </div>`).join('')+`
       <div style="display:flex;justify-content:space-between;padding:12px 0 2px;border-top:1px solid var(--border);margin-top:8px;font-family:var(--serif);font-size:18px;font-weight:600">
@@ -5662,7 +5701,7 @@ function renderVentas(){
     if(!S.ventas.length){ list.innerHTML='<div class="empty"><div class="empty-icon">🧾</div><div class="empty-txt">Aún no hay ventas.<br>Toca «Registrar venta» cuando salga el primer pedido.</div></div>'; }
     else{
       const itemsTxt=v=>Object.entries(v.items||{}).map(([k,q])=>{
-        const it=VENTA_ITEMS_ALL.find(i=>i.k===k); return `${q}× ${it?it.n:k}`;
+        const it=VENTA_ITEMS_ALL.find(i=>i.k===k); return `${q}× ${costoEsc(it?it.n:(VENTA_EXTRAS[k]?VENTA_EXTRAS[k].n:k))}`;
       }).join(', ');
       list.innerHTML=S.ventas.slice(0,40).map((v,i)=>`<div style="padding:12px 0;border-bottom:1px solid var(--border)">
           <div style="display:flex;justify-content:space-between;align-items:flex-start">
@@ -5892,7 +5931,6 @@ const DEFAULT_BAG_GRAMAJES = {
     {id:'caldo',n:'Caldo French Dip',g:250},
     {id:'cebolla',n:'Cebolla Caramelizada',g:70},
     {id:'mayodip',n:'Mayo French Dip',g:35},
-    {id:'queso_provolone',n:'Queso Provolone',g:20},
     {id:'papas_caja',n:'Papas incluidas (en la caja)',g:100},
     {id:'bolsa_papas',n:'Bolsa de papas',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
@@ -5903,7 +5941,6 @@ const DEFAULT_BAG_GRAMAJES = {
   entrecot:[
     {id:'vacio',n:'Vacío Sous Vide',g:90},
     {id:'mantequillaentrecot',n:'Mantequilla Café de París',g:40},
-    {id:'queso_provolone',n:'Queso Provolone',g:20},
     {id:'echalote',n:'Echalote Frito',g:30},
     {id:'papas_top',n:'Papas dentro de la baguette',g:80},
     {id:'papas_caja',n:'Papas incluidas',g:100},
@@ -5913,7 +5950,6 @@ const DEFAULT_BAG_GRAMAJES = {
   poivre:[
     {id:'vacio',n:'Vacío Sous Vide',g:90},
     {id:'aupoivre',n:'Salsa Au Poivre',g:94},
-    {id:'queso_provolone',n:'Queso Provolone',g:20},
     {id:'cebolla_frita',n:'Cebolla Frita',g:30},
     {id:'arugula',n:'Arúgula',g:10},
     {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
@@ -5924,7 +5960,7 @@ const DEFAULT_BAG_GRAMAJES = {
   ],
   pulledpork:[
     {id:'pulledpork',n:'Pulled Pork',g:120},
-    {id:'queso_parm',n:'Queso Parmesano',g:40},
+    {id:'queso_parm',n:'Queso Parmesano',g:15},
     {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
     {id:'colmorada',n:'Col Lombarda con Manzana',g:35},
     {id:'caviarmostaza',n:'Caviar de semilla de mostaza',g:15},
@@ -5958,16 +5994,19 @@ function applyCosteoV7(){
   S.empaques=getEmpaques().map(e=>(e.id==='sticker_circular'||e.id==='sticker_alargado')?{...e,precio:0.40}:e);
   S.fin={...finCfg(),ver:7};
 }
-// v8 (nov 2026): el gouda no se usa; el queso de todas las baguettes es provolone 20 g (el parmesano del Pulled Pork
-// sigue). Precios: Rappi Entrecôt y Poivre $285; Vodka y Pulled Pork $260 en Rappi y Uber. Solo en la sesión de Andres.
+// v8 (nov 2026): el gouda no se usa. Solo el Vodka lleva queso (provolone 20 g); el Pulled Pork lleva 15 g de parmesano;
+// Dip, Entrecôt y Poivre van sin queso. Precios: Rappi Entrecôt y Poivre $285; Vodka y Pulled Pork $260 en Rappi y Uber.
+// Solo en la sesión de Andres.
 function applyCosteoV8(){
   const G=JSON.parse(JSON.stringify(S.bagGramajes||DEFAULT_BAG_GRAMAJES));
   Object.keys(G).forEach(k=>{
     const out=[]; let puesto=false;
     (G[k]||[]).forEach(c=>{
-      if(c.id==='queso_gouda'||c.id==='queso_provolone'){ if(!puesto){ out.push({id:'queso_provolone',n:'Queso Provolone',g:20}); puesto=true; } }
+      if(c.id==='queso_gouda'||c.id==='queso_provolone'){ if(k==='vodka'&&!puesto){ out.push({id:'queso_provolone',n:'Queso Provolone',g:20}); puesto=true; } }
+      else if(c.id==='queso_parm'&&k==='pulledpork') out.push({...c,g:15});
       else out.push(c);
     });
+    if(k==='vodka'&&!puesto){ const i=Math.max(0,out.findIndex(c=>c.id==='salsavodka')+1); out.splice(i,0,{id:'queso_provolone',n:'Queso Provolone',g:20}); }
     G[k]=out;
   });
   S.bagGramajes=G;
