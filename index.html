@@ -2133,8 +2133,8 @@ const DEFAULT_COMMISSIONS = {base:0, rappi:0.30, uber:0.25, didi:0.30, pickup:0.
 // Empaques — precio por PIEZA; porBag = piezas por baguette; porPapas = piezas por orden de papas
 const DEFAULT_EMPAQUES = [
   {id:'caja_baguette',n:'Caja de Baguette',precio:7,porBag:1,porPapas:0},
-  {id:'sticker_circular',n:'Sticker Circular',precio:1.5,porBag:1,porPapas:0},
-  {id:'sticker_alargado',n:'Sticker Alargado',precio:1.5,porBag:1,porPapas:0},
+  {id:'sticker_circular',n:'Sticker Circular',precio:0.40,porBag:1,porPapas:0},
+  {id:'sticker_alargado',n:'Sticker Alargado',precio:0.40,porBag:1,porPapas:0},
   {id:'papel_alimenticio',n:'Papel Grado Alimenticio',precio:1,porBag:1,porPapas:0},
   {id:'bolsa_pedido',n:'Bolsa para Pedido',precio:3,porBag:0,porPapas:0},
   {id:'caja_papas',n:'Caja de papas extra',precio:5,porBag:0,porPapas:1},
@@ -2313,7 +2313,7 @@ async function initSB(){
     // v6: pulled pork nuevo y papas con pulled pork (200 g + 150 g, precio por canal)
     if(_cloudFinVer<6){ applyPriceBookV6(); saveS(); _cloudFinVer=6; pushPriceBook(); }
     // v7: composición nueva de baguettes. Espera a que entre Andres para no marcar la versión sin subir los gramajes.
-    if(_cloudFinVer<7&&S.activeUser==='Andres'){ applyCosteoV7(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=7; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); }
+    if(_cloudFinVer<7&&S.activeUser==='Andres'){ applyCosteoV7(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=7; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('empaques'); }
     // Ventas — resiliente si la tabla no existe. Primero se reintentan las que no se pudieron subir.
     try{
       await subirVentasPend();
@@ -4943,7 +4943,7 @@ function costeoTodos(){
   activeBagKeys().forEach(b=>(G[b]||[]).forEach(c=>{ if(c.id&&!PAPAS_COMP_IDS.includes(c.id)) revisar(c.id,BAG_NAMES[b]); }));
   if(isAparte('caldo')) out.push('DIP: el consomé va en contenedor aparte, pero ese contenedor no está en el costeo. Si lleva contenedor, agrégalo a los gramajes del DIP.');
   out.push('Echalote frito: la receta cuenta los 400 ml de aceite completos como costo y como peso. Falta medir cuánto aceite absorbe de verdad.');
-  out.push('Caja de baguette y stickers siguen sumándose a todas las baguettes (Empaques). Tu composición nueva no los menciona: confirma si siguen.');
+  out.push('Caja de baguette ($8) se sigue sumando a todas las baguettes (Empaques): confirma que sigue.');
   return out;
 }
 function renderCostos(){
@@ -5892,16 +5892,19 @@ const DEFAULT_BAG_GRAMAJES = {
     {id:'mayodip',n:'Mayo French Dip',g:35},
     {id:'queso_gouda',n:'Queso Gouda',g:50},
     {id:'papas_caja',n:'Papas incluidas (en la caja)',g:100},
+    {id:'bolsa_papas',n:'Bolsa de papas',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
   ],
   // Composición confirmada por Andres (nov 2026). Papas en gramos FRITOS; contenedor y bolsa de papas en piezas.
-  // El papel aluminizado (1 por baguette) va en Empaques, igual para todas.
+  // Todas llevan 100 g de papas incluidas con su bolsa; el Entrecôt lleva además 80 g dentro de la baguette.
+  // El papel aluminizado, la caja y los stickers (1 por baguette) van en Empaques, iguales para todas.
   entrecot:[
     {id:'vacio',n:'Vacío Sous Vide',g:90},
     {id:'mantequillaentrecot',n:'Mantequilla Café de París',g:40},
     {id:'queso_gouda',n:'Queso Gouda',g:50},
     {id:'echalote',n:'Echalote Frito',g:30},
-    {id:'papas_top',n:'Papas fritas',g:80},
+    {id:'papas_top',n:'Papas dentro de la baguette',g:80},
+    {id:'papas_caja',n:'Papas incluidas',g:100},
     {id:'bolsa_papas',n:'Bolsa de papas',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
   ],
@@ -5912,6 +5915,8 @@ const DEFAULT_BAG_GRAMAJES = {
     {id:'cebolla_frita',n:'Cebolla Frita',g:30},
     {id:'arugula',n:'Arúgula',g:10},
     {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
+    {id:'papas_caja',n:'Papas incluidas',g:100},
+    {id:'bolsa_papas',n:'Bolsa de papas',g:1},
     {id:'contenedor',n:'Contenedor',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
   ],
@@ -5919,28 +5924,37 @@ const DEFAULT_BAG_GRAMAJES = {
     {id:'pulledpork',n:'Pulled Pork',g:120},
     {id:'queso_parm',n:'Queso Parmesano',g:40},
     {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
-    {id:'mayochipotle',n:'Mayo Chipotle',g:14},
     {id:'colmorada',n:'Col Lombarda con Manzana',g:35},
     {id:'caviarmostaza',n:'Caviar de semilla de mostaza',g:15},
+    {id:'papas_caja',n:'Papas incluidas',g:100},
+    {id:'bolsa_papas',n:'Bolsa de papas',g:1},
     {id:'contenedor',n:'Contenedor',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
   ],
   vodka:[
     {id:'pollo',n:'Pollo Empanizado',g:90},
     {id:'salsavodka',n:'Salsa Vodka',g:150},
-    {id:'queso_gouda',n:'Queso Gouda',g:50},
+    {id:'queso_provolone',n:'Queso Provolone',g:50},
     {id:'cebolla',n:'Cebolla Caramelizada',g:70},
     {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
+    {id:'papas_caja',n:'Papas incluidas',g:100},
+    {id:'bolsa_papas',n:'Bolsa de papas',g:1},
     {id:'contenedor',n:'Contenedor',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
   ],
 };
-// v7 (nov 2026): composición confirmada de Entrecôt, Poivre, Pulled Pork y Vodka. El DIP no cambia.
-// Solo corre en la sesión de Andres (los gramajes en la nube solo los escribe él).
+// v7 (nov 2026): composición confirmada de Entrecôt, Poivre, Pulled Pork y Vodka; al DIP (receta sin cambios)
+// solo se le suma la bolsa de sus papas incluidas; stickers a $0.40.
+// Solo corre en la sesión de Andres (gramajes y empaques en la nube solo los escribe él).
 function applyCosteoV7(){
   const G=JSON.parse(JSON.stringify(S.bagGramajes||DEFAULT_BAG_GRAMAJES));
   ['entrecot','poivre','pulledpork','vodka'].forEach(k=>{ G[k]=JSON.parse(JSON.stringify(DEFAULT_BAG_GRAMAJES[k])); });
-  S.bagGramajes=G; S.fin={...finCfg(),ver:7};
+  if(G.dip&&G.dip.some(c=>c.id==='papas_caja')&&!G.dip.some(c=>c.id==='bolsa_papas')){
+    const i=G.dip.findIndex(c=>c.id==='papas_caja'); G.dip.splice(i+1,0,{id:'bolsa_papas',n:'Bolsa de papas',g:1});
+  }
+  S.bagGramajes=G;
+  S.empaques=getEmpaques().map(e=>(e.id==='sticker_circular'||e.id==='sticker_alargado')?{...e,precio:0.40}:e);
+  S.fin={...finCfg(),ver:7};
 }
 
 const BAG_NAMES = {dip:'DIP',entrecot:'ENTRECÔT',poivre:'POIVRE',pulledpork:'PULLED PORK',vodka:'VODKA'};
@@ -6514,7 +6528,7 @@ function papasSummaryHtml(){
   const row=(n,ver)=>{ const x=papasExtraFin(ver); return `<div style="padding:8px 0;border-top:1px solid var(--border)"><div style="display:flex;justify-content:space-between"><span style="color:var(--crema);font-weight:600">${n}</span><b style="color:${marginColor(x.mg)}">${fmtM(x.util,2)}</b></div><div style="font-size:12px;color:var(--text3)">precio ${fmtM(x.precio,0)} · costo ${fmtM(x.costo,2)} (incluye caja propia) · margen ${x.mg.toFixed(0)}%</div></div>`; };
   return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r10);padding:12px;font-size:13px;line-height:1.55;color:var(--text2)">
     <div style="font-weight:700;color:var(--crema);margin-bottom:4px">Papas incluidas · ${fmtQ(c.gramos,'g')} por baguette</div>
-    <div>Costo ${fmtM(papasIncluidasCost(),2)}, ya sumado al costo de cada baguette. Van dentro de la caja de la baguette, sin bolsita.</div>
+    <div>Costo ${fmtM(papasIncluidasCost(),2)}, ya sumado al costo de cada baguette, igual que su bolsa de papas (va en los gramajes de cada baguette).</div>
     <div style="font-weight:700;color:var(--crema);margin:12px 0 2px">Papas extra · producto aparte (utilidad por orden)</div>
     ${row('Clásicas','clasica')}${row('Clásicas trufadas','trufa')}${row('Parmesano y perejil','parm')}${row('Parmesano y perejil trufadas','parmtrufa')}${row('Papas Fondo (con pulled pork)','pp')}<div style="font-size:12px;color:var(--text3);padding:2px 0 6px">Por canal (neta, con comisión): ${papasPPCanales().map(x=>`${x.n} ${fmtM(x.precio,0)} → <b style="color:${marginColor(x.mg)}">${fmtM(x.util,2)}</b> (${x.mg.toFixed(0)}%)`).join(' · ')}</div>${row('Con trufa','trufa')}
     <div style="margin-top:8px;font-size:12px;color:var(--text3)">El aceite de la freidora cuesta ${fmtM(papasOilCost(),2)} por porción (${fmtN(c.litros,1)} L, cambio cada ${fmtN(c.kgCambio,1)} kg, ${fmtN(oilMl,0)} ml por porción).</div></div>`;
