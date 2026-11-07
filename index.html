@@ -830,6 +830,7 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
     <div class="pill" onclick="setInsFilter('Fondo',this)">Fondo</div>
     <div class="pill" onclick="setInsFilter('Empaques',this)">Empaques</div>
   </div>
+  <div id="reordenRoot"></div>
   <div id="insList"></div>
 </div>
 </div>
@@ -865,7 +866,8 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
 <!-- VENTAS -->
 <div class="page" id="page-ventas">
 <div class="inner">
-  <button class="btn btn-rojo" onclick="openVentaModal()" style="margin-bottom:16px;font-size:12px;padding:15px">Registrar venta</button>
+  <button class="btn btn-rojo" onclick="openVentaModal()" style="margin-bottom:10px;font-size:12px;padding:15px">Registrar venta</button>
+  <button class="btn btn-outline" onclick="openImportModal()" style="margin-bottom:16px;font-size:12px;padding:13px">Importar ventas (Uber / Rappi)</button>
   <div class="card">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-chart"/></svg></span>Resumen de ventas</div>
     <div id="ventasResumen"></div>
@@ -1218,6 +1220,30 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
 </div>
 
 <!-- MODAL NUEVA VENTA -->
+<div class="overlay" id="mImport">
+<div class="modal">
+  <div class="modal-title">Importar ventas <button class="modal-close" onclick="closeM('mImport')">✕</button></div>
+  <p style="font-size:12.5px;color:var(--text2);line-height:1.5;margin-bottom:10px">Sube el reporte en CSV de Uber Eats o Rappi. Revisa la vista previa y confirma. Solo se guardan producto, cantidad, fecha, folio, total y comisión: nunca nombre, teléfono ni dirección del cliente. Subir el mismo archivo dos veces no duplica ventas.</p>
+  <input type="file" id="importFile" accept=".csv,text/csv" onchange="importLeerArchivo(this)">
+  <div id="importPreview" style="margin-top:12px"></div>
+  <div class="btn-row">
+    <button class="btn btn-verde" id="importBtn" onclick="importConfirmar()" disabled>Importar</button>
+    <button class="btn btn-ghost" onclick="closeM('mImport')">Cancelar</button>
+  </div>
+</div>
+</div>
+
+<div class="overlay" id="mInvMov">
+<div class="modal">
+  <div class="modal-title"><span id="invMovTitle">Movimiento</span> <button class="modal-close" onclick="closeM('mInvMov')">✕</button></div>
+  <div id="invMovBody"></div>
+  <div class="btn-row">
+    <button class="btn btn-verde" id="invMovBtn" onclick="invMovConfirmar()">Guardar</button>
+    <button class="btn btn-ghost" onclick="closeM('mInvMov')">Cancelar</button>
+  </div>
+</div>
+</div>
+
 <div class="overlay" id="mVenta">
 <div class="modal">
   <div class="modal-title">Nueva venta <button class="modal-close" onclick="closeM('mVenta')">✕</button></div>
@@ -1560,6 +1586,48 @@ caldo:{
       {t:'Retirar y secar',x:'Retirar con pinzas a papel absorbente. Usar inmediatamente o en las próximas 2 horas.',timer:null,ck:'Si se quemaron (café oscuro): NO los uses. El sabor amargo arruinará el sandwich.',tip:'El echalote frito es el elemento más volátil — pierde crunch con la humedad. Siempre hacer fresco.'},
     ]
   },
+  cebollafrita:{
+    // Misma receta del echalote frito, cambiando echalote por cebolla (1,000 g : 300 g de harina). Va en POIVRE.
+    // TODO Andres: aceite de fritura (absorción) sin dato, no se costea; rendimiento tomado del echalote (60 %), medir real.
+    name:'Cebolla Frita',cat:'base',tiempo:'10-15 min',rendPct:.60,invId:'cebolla_frita',
+    todo:'Aceite de fritura (absorción) sin medir: no se costea. Rendimiento 60 % tomado del echalote frito: medir real.',
+    ing:[
+      {k:'cebolla',n:'Cebolla blanca',a:1000,u:'g'},
+      {k:'harina',n:'Harina',a:300,u:'g'},
+    ],
+    steps:[
+      {t:'Cortar en láminas',x:'Cortar los <span class="sq">{cebolla} de cebolla</span> en láminas muy finas y uniformes con mandolina.',timer:null,ck:null,tip:'Mandolina: si el grosor no es parejo, unas se queman y otras quedan crudas.'},
+      {t:'Enharinar y freír INMEDIATAMENTE',x:'Combinar la cebolla con <span class="sq">{harina} de harina</span>. Retirar el exceso sacudiendo. <strong>FREÍR INMEDIATAMENTE</strong> en aceite a 170°C.',timer:4,ck:'Dorado claro y parejo. Crujiente al tacto.',tip:'Si la cebolla enharinada espera, suelta agua y la harina se hace pasta.'},
+      {t:'Retirar y secar',x:'Retirar con pinzas a papel absorbente. Usar en las próximas 2 horas.',timer:null,ck:'Si se quemó (café oscuro), no se usa: amarga.',tip:null},
+    ]
+  },
+  colmorada:{
+    // Col lombarda con manzana (Apfelrotkohl). Rinde ~1.9 kg (medir real). 5-7 días en refri (por validar); se puede congelar al vacío.
+    // Clavo y canela no están en el catálogo: no se costean (costo insignificante).
+    name:'Col Lombarda con Manzana',cat:'base',tiempo:'2h',rendPct:1,rindeG:1900,invId:'colmorada',
+    todo:'Rinde 1.9 kg estimado: medir real. Precios por capturar: col lombarda, manzana verde, aceite de canola, vino tinto y jugo de manzana. Vida útil 5-7 días por validar.',
+    ing:[
+      {k:'col_lombarda',n:'Col lombarda',a:1925,u:'g'},
+      {k:'manzana_verde',n:'Manzana verde',a:385,u:'g'},
+      {k:'cebolla',n:'Cebolla',a:231,u:'g'},
+      {k:'mantequilla',n:'Mantequilla',a:25,u:'g'},
+      {k:'aceite_canola',n:'Aceite de canola',a:33,u:'ml'},
+      {k:'vinagre_manzana',n:'Vinagre de manzana',a:116,u:'ml'},
+      {k:'vino_tinto',n:'Vino tinto',a:116,u:'ml'},
+      {k:'jugo_manzana',n:'Jugo de manzana',a:289,u:'ml'},
+      {k:'azucar_morena',n:'Azúcar morena',a:96,u:'g'},
+      {k:'sal',n:'Sal',a:15,u:'g'},
+      {k:'laurel',n:'Laurel (4 hojas)',a:0.8,u:'g'},
+    ],
+    steps:[
+      {t:'Sudar la cebolla',x:'Sudar <span class="sq">{cebolla} de cebolla</span> en <span class="sq">{mantequilla} de mantequilla</span> + <span class="sq">{aceite_canola} de aceite de canola</span>.',timer:6,ck:'Cebolla suave y translúcida, sin color.',tip:null},
+      {t:'Marchitar la col',x:'Agregar <span class="sq">{col_lombarda} de col lombarda</span> con <span class="sq">{sal} de sal</span> y marchitar.',timer:10,ck:'La col bajó de volumen y soltó jugo.',tip:'8 a 10 minutos.'},
+      {t:'Agregar el resto',x:'Agregar <span class="sq">{manzana_verde} de manzana verde</span>, <span class="sq">{vinagre_manzana} de vinagre de manzana</span>, <span class="sq">{vino_tinto} de vino tinto</span>, <span class="sq">{jugo_manzana} de jugo de manzana</span>, <span class="sq">{azucar_morena} de azúcar morena</span>, 4 clavos, 4 hojas de laurel y una pizca generosa de canela.',timer:null,ck:null,tip:null},
+      {t:'Cocción tapada',x:'Tapar y cocinar a fuego bajo 75 a 90 minutos.',timer:80,ck:'La col está suave.',tip:null},
+      {t:'Reducir',x:'Destapar y reducir 15 a 20 minutos hasta que brille y casi no tenga líquido. Ajustar acidez y dulce.',timer:18,ck:'Brillante, casi sin líquido.',tip:null},
+      {t:'Enfriar y guardar',x:'Enfriar en baño maría inverso. Pesar lo que rindió. Refrigerar (5-7 días, por validar) o congelar al vacío.',timer:null,ck:null,tip:'Anota los gramos reales: hoy el costeo supone 1.9 kg.'},
+    ]
+  },
   mayoajneg:{
     name:'Mayo Ajo Negro',cat:'mayo',tiempo:'10 min',rendPct:1.0,invId:'mayoajneg',
     ing:[
@@ -1596,7 +1664,8 @@ caldo:{
   },
   caviarmostaza:{
     // Caviar de semilla de mostaza: rinde ~150 g. Se conserva máximo 5 días en refrigeración.
-    name:'Caviar de semilla de mostaza',cat:'salsa',tiempo:'15 min + 30 min de reposo',rendPct:1.0,invId:'caviarmostaza',
+    // rindeG: lo que sale de la receta tal cual (el agua no cuenta como insumo, pero sí pesa en lo que rinde)
+    name:'Caviar de semilla de mostaza',cat:'salsa',tiempo:'15 min + 30 min de reposo',rendPct:1.0,rindeG:150,invId:'caviarmostaza',
     ing:[
       {k:'semilla_mostaza',n:'Semilla de mostaza amarilla',a:50,u:'g'},
       {k:'vinagre_manzana',n:'Vinagre de manzana',a:60,u:'ml'},
@@ -1769,7 +1838,6 @@ const INSUMOS = [
   {id:'cebolla_raw',n:'Cebolla Blanca',cat:'Vegetales',precio:8},
   {id:'cebolla_morada',n:'Cebolla Morada',cat:'Vegetales',precio:11},
   {id:'echalote_raw',n:'Echalote',cat:'Vegetales',precio:128},
-  {id:'cebolla_frita',n:'Cebolla Frita',cat:'Vegetales',precio:0},   // POIVRE · precio pendiente de confirmar
   {id:'ajo',n:'Ajo',cat:'Vegetales',precio:48},
   {id:'ajo_negro',n:'Ajo Negro',cat:'Vegetales',precio:2000},
   {id:'zanahoria',n:'Zanahoria',cat:'Vegetales',precio:10},
@@ -1811,6 +1879,15 @@ const INSUMOS = [
   {id:'tomillo',n:'Tomillo',cat:'Abarrotes',precio:110},
   {id:'huevo',n:'Huevo',cat:'Abarrotes',precio:3.67},
   {id:'vodka',n:'Vodka',cat:'Abarrotes',precio:280},
+  // Col lombarda con manzana (PULLED PORK) · TODO Andres: precios por capturar
+  {id:'col_lombarda',n:'Col Lombarda (morada)',cat:'Vegetales',precio:0},
+  {id:'manzana_verde',n:'Manzana Verde',cat:'Vegetales',precio:0},
+  {id:'aceite_canola',n:'Aceite de Canola',cat:'Abarrotes',precio:0},
+  {id:'vino_tinto',n:'Vino Tinto',cat:'Abarrotes',precio:0},
+  {id:'jugo_manzana',n:'Jugo de Manzana',cat:'Abarrotes',precio:0},
+  // Empaque por pieza que va en la composición de cada baguette
+  {id:'contenedor',n:'Contenedor de paquete',cat:'Empaque',precio:0.80},
+  {id:'bolsa_papas',n:'Bolsa de papas',cat:'Empaque',precio:1.8677},   // $373.54 / 200 piezas
   // Preparados FONDO
   {id:'ins_aupoivre',n:'Salsa Au Poivre',cat:'Fondo',precio:133.12},
   {id:'ins_salsavodka',n:'Salsa Vodka',cat:'Fondo',precio:72.67},
@@ -1856,6 +1933,8 @@ const RECIPE_INSUMOS = {
   pulledporkbase: recetaARatios('pulledporkbase',{cebolla:'cebolla_raw'}),   // sale de la receta del Recetario
   mayonegra: recetaARatios('mayonegra'),
   caviarmostaza: recetaARatios('caviarmostaza',{agua:null}),
+  cebollafrita: recetaARatios('cebollafrita',{cebolla:'cebolla_raw'}),
+  colmorada: recetaARatios('colmorada',{cebolla:'cebolla_raw'}),
   mayoajneg: [{id:'mayonesa',ratio:0.945},{id:'ajo_negro',ratio:0.03},{id:'vinagre_arroz',ratio:0.02},{id:'sal',ratio:0.005}],
   mayotrufa: [{id:'mayonesa',ratio:0.795},{id:'miel',ratio:0.049},{id:'aceite_trufa',ratio:0.116},{id:'sal',ratio:0.022},{id:'vinagre_arroz',ratio:0.033}],
   mayochipotle: [{id:'mayonesa',ratio:0.79},{id:'chipotle',ratio:0.08},{id:'salsa_inglesa',ratio:0.02},{id:'vinagre_arroz',ratio:0.05},{id:'ajo',ratio:0.06},{id:'sal',ratio:0.003}],
@@ -1908,13 +1987,15 @@ const INV = [
   {id:'caviarmostaza',n:'Caviar de semilla de mostaza',cat:'salsa',min:100,bolsa:150},
   {id:'mayodip',n:'Mayo French Dip',cat:'mayo',min:1000,bolsa:1000},
   {id:'mantequillaentrecot',n:'Mantequilla Entrecôt',cat:'mayo',min:500,bolsa:500},
+  {id:'cebolla_frita',n:'Cebolla Frita',cat:'base',min:300,bolsa:300},
+  {id:'colmorada',n:'Col Lombarda con Manzana',cat:'base',min:500,bolsa:500},
 ];
 
 // ================================================================
 // UNIDADES Y FORMATO — líquidos en ml · sólidos en g · piezas en pza
 // ================================================================
-const INS_ML=new Set(['aceite_oliva','aceite_freir','aceite_trufa','aceite_trufa_aroma','vinagre_bals','vinagre_arroz','vinagre_manzana','vino_blanco','caldo_pollo','pure_tomate','salsa_inglesa','soya','miel','vodka','agua_mineral','crema_lyncott','crema_batir','limon','ins_aupoivre','ins_salsavodka','ins_caldo']);
-const INS_PZA={pan:{eq:0},huevo:{eq:50}};   // eq = gramos por pieza (para convertir cantidades de receta)
+const INS_ML=new Set(['aceite_oliva','aceite_freir','aceite_trufa','aceite_trufa_aroma','vinagre_bals','vinagre_arroz','vinagre_manzana','vino_blanco','caldo_pollo','pure_tomate','salsa_inglesa','soya','miel','vodka','agua_mineral','crema_lyncott','crema_batir','limon','ins_aupoivre','ins_salsavodka','ins_caldo','aceite_canola','vino_tinto','jugo_manzana']);
+const INS_PZA={pan:{eq:0},huevo:{eq:50},contenedor:{eq:0},bolsa_papas:{eq:0}};   // eq = gramos por pieza (para convertir cantidades de receta)
 const INV_ML=new Set(['aupoivre','salsavodka','caldo']);
 // Presentación habitual por defecto (cuánto trae 1 pieza). Por omisión 1,000 (=1 kg / 1 L / 1 pza) que equivale al precio de referencia actual.
 const INS_PRES_DEFAULT={crema_lyncott:400,limon:30,pan:1,huevo:1,aceite_trufa_aroma:250};
@@ -1952,7 +2033,10 @@ const BAG_ORDER=['entrecot','poivre','vodka','dip','pulledpork'];
 const DEFAULT_BAG_ACTIVE={entrecot:true,poivre:true,vodka:true,dip:false,pulledpork:false};
 function bagIsActive(k){const a=S.bagActive||{}; return a[k]!==undefined?!!a[k]:!!DEFAULT_BAG_ACTIVE[k];}
 function activeBagKeys(){return BAG_ORDER.filter(bagIsActive);}
-const DEFAULT_PAPAS_CFG={gramos:100,rubG:1,trufaMl:15,ppG:150,ppPapasG:200,litros:3.5,kgCambio:3.5,precioBase:55,precioPP:95,precioPP_rappi:115,precioPP_uber:115,precioPP_didi:115,precioTrufa:70,parmG:15,precioParm:65,precioParmTrufa:80};
+// congG → fritoG: rendimiento de la papa (650 g congeladas dan 470 g fritas). Los gramos de porción son de papa FRITA.
+const DEFAULT_PAPAS_CFG={gramos:100,rubG:1,trufaMl:15,ppG:150,ppPapasG:200,litros:3.5,kgCambio:3.5,precioBase:55,precioPP:95,precioPP_rappi:115,precioPP_uber:115,precioPP_didi:115,precioTrufa:70,parmG:15,precioParm:65,precioParmTrufa:80,congG:650,fritoG:470};
+// Gramos de papa congelada que se necesitan para g gramos de papa frita
+function papasCongeladas(g){ const c=papasCfg(); return (c.congG>0&&c.fritoG>0)?g*c.congG/c.fritoG:g; }
 // Papas con pulled pork: precio por canal (si un canal no tiene precio propio, usa el de Directo)
 function papasPrecioPP(plat){ const c=papasCfg(), v=c['precioPP_'+plat]; return plat&&plat!=='base'&&v!=null?v:c.precioPP; }
 function papasCfg(){return {...DEFAULT_PAPAS_CFG,...(S.papasCfg||{})};}
@@ -1960,24 +2044,15 @@ const PAPAS_COMP_IDS=['papas_caja','papas_top'];
 const PAPAS_VER={papas:'clasica',papastrufa:'trufa',papasparm:'parm',papasparmtrufa:'parmtrufa',papaspp:'pp'};
 // Insumos que consumen g gramos de papa (rub + aceite de la freidora + aceite de trufa)
 function papasNeeds(g,ver){
-  const c=papasCfg(); const f=g/(c.gramos||100);
-  const o={papas:g,sal:c.rubG*f,pimienta:c.rubG*f,perejil:c.rubG*f,aceite_freir:(c.litros/(c.kgCambio||1))*g};
+  const c=papasCfg(); const f=g/(c.gramos||100), gc=papasCongeladas(g);   // g = papa frita; gc = congelada que se gasta
+  const o={papas:gc,sal:c.rubG*f,pimienta:c.rubG*f,perejil:c.rubG*f,aceite_freir:(c.litros/(c.kgCambio||1))*gc};
   if(ver==='parm'||ver==='parmtrufa') o.queso_parm=c.parmG*f;
   if(ver==='trufa'||ver==='parmtrufa') o.aceite_trufa_aroma=c.trufaMl*f;
   return o;
 }
 function papasCostFromNeeds(n){let s=0;Object.keys(n).forEach(id=>{ if(INSUMOS.some(x=>x.id===id)) s+=n[id]*insFifoPrecio(id)/pdiv(id); });return s;}
 function papasPortionCost(ver,g){const c=papasCfg(); g=g||(ver==='pp'?c.ppPapasG:c.gramos); let cost=papasCostFromNeeds(papasNeeds(g,ver)); if(ver==='pp') cost+=c.ppG*(g/(c.ppPapasG||1))*costPerGProd('pulledpork'); return cost;}
-function papasOilCost(g){const c=papasCfg(); g=g||c.gramos; return (c.litros/(c.kgCambio||1))*g*insFifoPrecio('aceite_freir')/pdiv('aceite_freir');}
-function consumePapas(g,ver,touched){
-  const n=papasNeeds(g,ver);
-  Object.keys(n).forEach(id=>{
-    if(!INSUMOS.some(x=>x.id===id)) return;
-    const q=n[id];
-    S.insumos[id]=Math.max(0,(S.insumos[id]||0)-q); consumirLotes(id,q);
-    if(touched) touched.ins.add(id);
-  });
-}
+function papasOilCost(g){const c=papasCfg(); g=g||c.gramos; return (c.litros/(c.kgCambio||1))*papasCongeladas(g)*insFifoPrecio('aceite_freir')/pdiv('aceite_freir');}
 // Qué productos e insumos usan las baguettes activas (para alertas y listas)
 function activeSets(){
   const prod=new Set(), ins=new Set();
@@ -2033,10 +2108,10 @@ const PROD_TO_RECIPE = {
   picana:'roastbeef', vacio:'vaciosv', pulledpork:'pulledporkbase', pollo:'polloempanizado',
   aupoivre:'aupoivre', salsavodka:'salsavodka', caldo:'caldo', cebolla:'cebolla', echalote:'echalote',
   mayoajneg:'mayoajneg', mayonegra:'mayonegra', caviarmostaza:'caviarmostaza', mayotrufa:'mayotrufa', mayochipotle:'mayochipotle', mayodip:'mayodip',
-  mantequillaentrecot:'mantequillaentrecot'
+  mantequillaentrecot:'mantequillaentrecot', cebolla_frita:'cebollafrita', colmorada:'colmorada'
 };
 // Componentes que se cuentan por PIEZA (precio por pieza, no por kg)
-const PIECE_IDS = ['pan'];
+const PIECE_IDS = ['pan','contenedor','bolsa_papas'];
 // Plataformas de venta
 const DEFAULT_PLATFORMS = [
   {k:'base',n:'Directo',comm:0,color:'#c9a24b',fixed:true},
@@ -2161,8 +2236,18 @@ async function initSB(){
     if(prices.length) prices.forEach(p => S.prices[p.ingrediente] = p.costo_kg);
     seedPrices();
 
+    // Ledger de movimientos (supabase/011): si existe, primero se suben los pendientes y luego se lee el stock
+    try{ const {error:eM}=await sb.from('fondo_movimientos').select('id').limit(1); _ledger=!eM; }catch(e){ _ledger=false; }
+    if(_ledger) await subirMovPend();
     const {data:ins, error:e4} = await sb.from('fondo_insumos').select('*');
-    if(!e4 && ins) ins.forEach(r => S.insumos[r.id] = r.stock);
+    if(!e4 && ins){
+      S.insParams=S.insParams||{};
+      ins.forEach(r=>{
+        S.insumos[r.id]=+r.stock||0;
+        if('lead_time_dias' in r) S.insParams[r.id]={lt:r.lead_time_dias,seg:r.dias_seguridad,vida:r.vida_util_dias,max:r.nivel_maximo_dias,manual:r.consumo_diario_manual,unidad:r.unidad};
+      });
+      movPend().forEach(m=>{ S.insumos[m.insumo_id]=(S.insumos[m.insumo_id]||0)+(+m.cantidad||0); });   // lo que aún no sube
+    }
 
     // Empaques (piezas) — resiliente si la tabla no existe
     try{ const {data:emp,error:eE}=await sb.from('fondo_empaques').select('*'); if(!eE&&emp) emp.forEach(r=>S.empaqueStock[r.id]=r.stock); }catch(e){}
@@ -2198,6 +2283,7 @@ async function initSB(){
         if(r.key==='provRules') S.provRules={...(S.provRules||{}),...r.value};
         if(r.key==='aparte') S.aparte={...(S.aparte||{}),...r.value};
         if(r.key==='fijos'&&Array.isArray(r.value)) S.fijos=r.value;
+        if(r.key==='importCfg') S.importCfg=r.value;
         // Ajustes de costos compartidos: la nube manda (los define Andres)
         if(COSTO_CFG_KEYS.includes(r.key)&&(!['platforms','empaques'].includes(r.key)||Array.isArray(r.value))){ S[r.key]=r.value; _cfgNube.add(r.key); }
         if(r.key==='fin'){ _cloudFinVer=r.value.ver||0; const {ver,...rest}=r.value; S.fin={...(S.fin||{}),...rest}; } });
@@ -2226,6 +2312,8 @@ async function initSB(){
     if(_cloudFinVer<5){ applyPriceBookV5(); saveS(); _cloudFinVer=5; pushPriceBook(); }
     // v6: pulled pork nuevo y papas con pulled pork (200 g + 150 g, precio por canal)
     if(_cloudFinVer<6){ applyPriceBookV6(); saveS(); _cloudFinVer=6; pushPriceBook(); }
+    // v7: composición nueva de baguettes. Espera a que entre Andres para no marcar la versión sin subir los gramajes.
+    if(_cloudFinVer<7&&S.activeUser==='Andres'){ applyCosteoV7(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=7; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); }
     // Ventas — resiliente si la tabla no existe. Primero se reintentan las que no se pudieron subir.
     try{
       await subirVentasPend();
@@ -3192,11 +3280,7 @@ async function confirmDeleteHist(idx){
   }
   // Revertir en insumos
   const ins=INSUMOS.find(p=>p.n===h.nombre);
-  if(ins){
-    if(h.tipo==='entrada') S.insumos[ins.id]=Math.max(0,(S.insumos[ins.id]||0)-h.total);
-    else S.insumos[ins.id]=(S.insumos[ins.id]||0)+h.total;
-    await saveInsumosToDB(ins.id);
-  }
+  if(ins) await movInsumos({[ins.id]:h.total},h.tipo==='entrada'?-1:1,'ajuste',`Borrado de movimiento: ${h.tipo} ${h.nombre} ${h.time}`);
   // Borrar del historial
   S.hist.splice(idx,1);
   await saveS();
@@ -3547,7 +3631,116 @@ function setInsFilter(f,el){
   el.classList.add('on');renderInsumos();
 }
 
+// ----- Punto de reorden: consumo por día de operación (solo días con ventas), últimos 7 días de operación -----
+// punto de reorden = consumo diario × (lead time + días de seguridad)
+// nivel máximo = consumo diario × días de nivel máximo, con tope por caducidad (consumo diario × vida útil)
+// sugerido = nivel máximo − stock, redondeado hacia arriba a la presentación de compra
+const REORDEN_DEF={lt:2,seg:1,max:7};   // defaults de supabase/011 (editables por insumo)
+function insParam(id){
+  const p=(S.insParams||{})[id]||{}, n=v=>v===null||v===undefined||v===''?null:+v;
+  return {lt:n(p.lt)??REORDEN_DEF.lt,seg:n(p.seg)??REORDEN_DEF.seg,max:n(p.max)??REORDEN_DEF.max,vida:n(p.vida),manual:n(p.manual)};
+}
+function consumoOperacion(){
+  const porDia={};
+  (S.ventas||[]).forEach(v=>{ if(v&&v.ts){ const d=new Date(v.ts).toDateString(); (porDia[d]=porDia[d]||[]).push(v); } });
+  const dias=Object.keys(porDia).sort((a,b)=>new Date(b)-new Date(a)).slice(0,7);
+  const tot={}, avisos=new Set();
+  dias.forEach(d=>porDia[d].forEach(v=>{
+    const c=consumoVenta(v.items);
+    Object.entries(c.ins).forEach(([id,q])=>tot[id]=(tot[id]||0)+q);
+    Object.entries(c.emp).forEach(([id,q])=>tot['emp:'+id]=(tot['emp:'+id]||0)+q);
+    c.sinReceta.concat(c.sinGramaje).forEach(x=>avisos.add(x));
+  }));
+  const diario={}; Object.keys(tot).forEach(id=>diario[id]=tot[id]/dias.length);
+  return {diario,dias:dias.length,avisos:[...avisos]};
+}
+function fmtCant(q,u){ q=+q||0; if(u==='pza') return fmtN(Math.ceil(q-0.001),0)+' pza'; if(Math.abs(q)>=1000) return fmtN(q/1000,2)+(u==='ml'?' L':' kg'); return fmtN(q,0)+' '+(u||'g'); }
+function filasReorden(){
+  const op=consumoOperacion(), out=[];
+  const fila=(key,id,n,u,stock,param,pack,prov)=>{
+    const calc=op.diario[key]||0, pocos=op.dias<3;
+    const cd=pocos&&param.manual!=null?param.manual:calc;
+    const fuente=pocos?(param.manual!=null?'manual':(calc>0?'pocos días':'sin datos')):`${op.dias} días`;
+    const reorden=cd*(param.lt+param.seg);
+    let max=cd*param.max; if(param.vida!=null) max=Math.min(max,cd*param.vida);
+    let sug=Math.max(0,max-stock); if(sug>0&&pack>0) sug=Math.ceil(sug/pack-1e-9)*pack;
+    const cob=cd>0?stock/cd:Infinity;
+    const sem=!(cd>0)?'gris':(stock<=reorden||cob<1?'rojo':(stock<=reorden*1.25?'amarillo':'verde'));
+    out.push({key,id,n,u,stock,cd,fuente,reorden,max,sug,cob,sem,prov,param,emp:key.startsWith('emp:')});
+  };
+  INSUMOS.forEach(p=>{
+    if(insOculto(p.id)&&!(op.diario[p.id]>0)) return;
+    if(!(op.diario[p.id]>0)&&!insIsActive(p.id)&&!(S.insumos[p.id])) return;
+    fila(p.id,p.id,p.n,p.u,S.insumos[p.id]||0,insParam(p.id),insPres(p.id),storeOf(p.id));
+  });
+  getEmpaques().forEach(e=>{ if(!(op.diario['emp:'+e.id]>0)&&!(e.porBag>0)) return; fila('emp:'+e.id,e.id,e.n,'pza',S.empaqueStock[e.id]||0,{...REORDEN_DEF,vida:null,manual:null},1,'Empaque'); });
+  const ord={rojo:0,amarillo:1,verde:2,gris:3};
+  out.sort((a,b)=>ord[a.sem]-ord[b.sem]||a.cob-b.cob);
+  return {filas:out,op};
+}
+let _reordenTodos=false;
+function renderReorden(){
+  const el=document.getElementById('reordenRoot'); if(!el) return;
+  const {filas,op}=filasReorden(), COL={rojo:'#ff7a7a',amarillo:'var(--dorado-light)',verde:'var(--verde-light)',gris:'var(--text3)'};
+  const pedir=filas.filter(f=>(f.sem==='rojo'||f.sem==='amarillo')&&f.sug>0);
+  const porProv={}; pedir.forEach(f=>(porProv[f.prov]=porProv[f.prov]||[]).push(f));
+  const ver=_reordenTodos?filas:filas.filter(f=>f.sem!=='gris');
+  const cob=c=>c===Infinity?'—':(c<0?'0':fmtN(c,1))+' d';
+  el.innerHTML=`<div class="card">
+    <div class="card-title" style="justify-content:space-between"><span>Punto de reorden</span><span style="font-size:12px;color:var(--text3);font-weight:400">${op.dias} día(s) de operación${op.dias<3?' · menos de 3: usa consumo manual':''}</span></div>
+    ${!_ledger?'<div class="empty-note" style="margin-bottom:10px">Falta correr supabase/011: el stock todavía no es suma de movimientos y no se pueden guardar parámetros.</div>':''}
+    ${op.avisos.length?`<div style="background:rgba(255,120,120,.08);border:1px solid rgba(255,120,120,.3);border-radius:var(--r10);padding:10px;margin-bottom:12px;font-size:12.5px;color:var(--text2)"><b style="color:#ff8888">Se vendió sin receta o sin gramaje (no se descontó):</b><br>${op.avisos.map(costoEsc).join('<br>')}</div>`:''}
+    <div class="lbl">Pedir hoy</div>
+    ${pedir.length?Object.entries(porProv).map(([pv,fs])=>`<div style="margin:6px 0 10px"><b style="color:var(--crema)">${costoEsc(pv)}</b>${fs.map(f=>`<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;color:var(--text2)"><span><span style="color:${COL[f.sem]}">●</span> ${costoEsc(f.n)}</span><b style="color:var(--crema)">${fmtCant(f.sug,f.u)}</b></div>`).join('')}</div>`).join('')+`<button class="btn btn-outline btn-sm" onclick="copiarPedido()">Copiar para WhatsApp</button>`:'<div class="empty-note">Nada en rojo o amarillo.</div>'}
+    <div class="lbl" style="margin-top:16px;display:flex;justify-content:space-between;align-items:center">Inventario <button class="btn btn-ghost btn-sm" onclick="_reordenTodos=!_reordenTodos;renderReorden()">${_reordenTodos?'Solo con consumo':'Ver todos'}</button></div>
+    <div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Insumo</th><th style="text-align:right">Stock</th><th style="text-align:right">Consumo/día</th><th style="text-align:right">Cobertura</th><th style="text-align:right">Reorden</th><th style="text-align:right">Sugerido</th><th>Proveedor</th><th></th></tr></thead><tbody>
+    ${ver.map(f=>`<tr><td><span style="color:${COL[f.sem]}">●</span> ${costoEsc(f.n)}<div style="font-size:10.5px;color:var(--text3)">${f.fuente}</div></td><td style="text-align:right;${f.stock<0?'color:#ff8888':''}">${fmtCant(f.stock,f.u)}</td><td style="text-align:right">${f.cd>0?fmtCant(f.cd,f.u):'—'}</td><td style="text-align:right">${cob(f.cob)}</td><td style="text-align:right">${f.cd>0?fmtCant(f.reorden,f.u):'—'}</td><td style="text-align:right;font-weight:700">${f.sug>0?fmtCant(f.sug,f.u):'—'}</td><td style="font-size:12px">${costoEsc(f.prov)}</td>
+      <td style="white-space:nowrap">${f.emp?'':`<button class="btn btn-ghost btn-sm" onclick="openCompraModal('${f.id}')" title="Registrar compra">Compra</button><button class="btn btn-ghost btn-sm" onclick="invMov('conteo','${f.id}')">Conteo</button><button class="btn btn-ghost btn-sm" onclick="invMov('merma','${f.id}')">Merma</button><button class="btn btn-ghost btn-sm" onclick="invMov('param','${f.id}')" title="Lead time, seguridad, vida útil…">⚙</button>`}</td></tr>`).join('')}
+    </tbody></table></div>
+    <div style="font-size:11.5px;color:var(--text3);margin-top:6px">Rojo: stock ≤ punto de reorden o cubre menos de 1 día. Amarillo: stock ≤ reorden × 1.25. El stock es la suma de movimientos (compras, ventas, conteos, mermas): no se edita a mano.</div>
+  </div>`;
+}
+function copiarPedido(){
+  const {filas}=filasReorden(), porProv={};
+  filas.filter(f=>(f.sem==='rojo'||f.sem==='amarillo')&&f.sug>0).forEach(f=>(porProv[f.prov]=porProv[f.prov]||[]).push(f));
+  const txt=`*Pedido FONDO · ${new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short'})}*\n`+Object.entries(porProv).map(([pv,fs])=>`\n*${pv}*\n`+fs.map(f=>`• ${f.n}: ${fmtCant(f.sug,f.u)}`).join('\n')).join('\n');
+  (navigator.clipboard?navigator.clipboard.writeText(txt):Promise.reject()).then(()=>showToast('Pedido copiado')).catch(()=>{ prompt('Copia el pedido:',txt); });
+}
+// Conteo físico, merma y parámetros de un insumo
+let _invMov=null;
+function invMov(tipo,id){
+  _invMov={tipo,id}; const p=INSUMOS.find(x=>x.id===id), u=p.u, pr=insParam(id), teo=S.insumos[id]||0;
+  document.getElementById('invMovTitle').textContent={conteo:'Conteo físico',merma:'Merma',param:'Parámetros de reorden'}[tipo]+' · '+p.n;
+  const inp=(k,l,v,ph)=>`<div class="inp-group"><label class="lbl">${l}</label><input type="number" inputmode="decimal" step="any" id="im_${k}" value="${v==null?'':v}" placeholder="${ph||''}"></div>`;
+  document.getElementById('invMovBody').innerHTML=
+    tipo==='conteo'?`<div style="font-size:13px;color:var(--text2);margin-bottom:8px">Teórico (suma de movimientos): <b style="color:var(--crema)">${fmtQ(teo,u)}</b></div>${inp('q','Lo que contaste ('+u+')','')}<div style="font-size:12px;color:var(--text3)">Se guarda un movimiento por la diferencia y se muestra la desviación contra el teórico.</div>`
+    :tipo==='merma'?`${inp('q','Cantidad que se tiró ('+u+')','')}<div class="inp-group"><label class="lbl">Motivo</label><input type="text" id="im_motivo" placeholder="Caducó, se quemó, se cayó…"></div>`
+    :inp('lt','Lead time (días que tarda en llegar)',pr.lt)+inp('seg','Días de seguridad',pr.seg)+inp('max','Nivel máximo (días de consumo)',pr.max)+inp('vida','Vida útil (días) · tope por caducidad',pr.vida,'sin tope')+inp('manual',`Consumo diario manual (${u}) · respaldo con menos de 3 días de ventas`,pr.manual,'—');
+  openM('mInvMov');
+}
+async function invMovConfirmar(){
+  if(!_invMov) return; const {tipo,id}=_invMov, p=INSUMOS.find(x=>x.id===id), v=k=>{ const e=document.getElementById('im_'+k); return e&&e.value!==''?parseFloat(e.value):null; };
+  if(tipo==='conteo'){
+    const q=v('q'); if(q==null||q<0) return showToast('Escribe lo que contaste.');
+    const teo=S.insumos[id]||0, dif=q-teo, pct=teo?dif/teo*100:null;
+    await movInsumos({[id]:dif},1,'conteo',`Conteo físico: ${fmtQ(q,p.u)} (teórico ${fmtQ(teo,p.u)})`);
+    showToast(`Conteo guardado · desviación ${dif>=0?'+':''}${fmtQ(Math.round(dif*10)/10,p.u)}${pct!=null?` (${pct>=0?'+':''}${pct.toFixed(1)} %)`:''}`);
+  } else if(tipo==='merma'){
+    const q=v('q'), motivo=(document.getElementById('im_motivo')?.value||'').trim();
+    if(!(q>0)) return showToast('Escribe la cantidad.'); if(!motivo) return showToast('Escribe el motivo.');
+    await movInsumos({[id]:q},-1,'merma',motivo); showToast('Merma registrada');
+  } else {
+    const prm={lt:v('lt'),seg:v('seg'),max:v('max'),vida:v('vida'),manual:v('manual')};
+    if(prm.lt==null||prm.seg==null||prm.max==null) return showToast('Lead time, seguridad y nivel máximo son obligatorios.');
+    const sb=getSB(); if(!sb) return showToast('Sin conexión.');
+    const {error}=await sb.from('fondo_insumos').upsert({id,lead_time_dias:prm.lt,dias_seguridad:prm.seg,nivel_maximo_dias:prm.max,vida_util_dias:prm.vida,consumo_diario_manual:prm.manual,unidad:p.u});
+    if(error) return avisoNube(/column|lead_time/.test(error.message||'')?'parámetros (falta correr supabase/011)':'parámetros',error);
+    (S.insParams=S.insParams||{})[id]={...prm,unidad:p.u}; showToast('Parámetros guardados');
+  }
+  await saveS(); closeM('mInvMov'); renderInsumos(); updateAlertPill();
+}
 function renderInsumos(){
+  renderReorden();
   const list=document.getElementById('insList'); if(!list)return;
   if(S.insFilter==='Empaques'){ renderEmpaqueStock(list); return; }
   const fil=INSUMOS.filter(p=>!insOculto(p.id)&&(S.insFilter==='all'||p.cat===S.insFilter));
@@ -3722,7 +3915,6 @@ async function confirmCompra(){
   const total=n*pp;
   const lote={g,precioKg:precioBase,fecha,ts:Date.now(),user,pz:n,pres};
   getLotes(id).push(lote);
-  S.insumos[id]=(S.insumos[id]||0)+g;
   // La presentación se recuerda siempre; el precio de referencia solo si se pide
   if(!S.insPres) S.insPres={};
   const presCambio=(S.insPres[id]!==pres);
@@ -3733,8 +3925,8 @@ async function confirmCompra(){
   S.insHist.unshift({tipo:'entrada',nombre:p.n,weights:[g],user,total:g,
     ref:`Compra · ${fmtM(pp,2)} por pieza · ${fmtM(total,2)}`,
     time:new Date().toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+new Date().toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})});
+  await movInsumos({[id]:g},1,'compra',`Compra ${n} × ${fmtM(pp,2)} = ${fmtM(total,2)}`);
   await saveS();
-  await saveInsumosToDB(id);
   saveLoteToDB({id,g,precioKg:precioBase,fecha,user,total,lote});
   if(actualizar) savePriceToDB(id,precioBase);
   if(presCambio) saveCfgToDB('insPres',S.insPres);
@@ -3827,12 +4019,11 @@ async function quickInsAdd(id){
   const inp=document.getElementById('ins_'+id);
   const g=parseFloat(inp?.value)||0;
   if(g<=0){showToast('Ingresa una cantidad');return;}
-  S.insumos[id]=(S.insumos[id]||0)+g;
   const p=INSUMOS.find(x=>x.id===id);
   const entry={tipo:'entrada',nombre:p.n,weights:[g],user:S.users.insEntrada||'Andres',total:g,time:new Date().toLocaleString('es-MX')};
   S.insHist.unshift(entry);
+  await movInsumos({[id]:g},1,'compra','Entrada rápida (sin precio)');
   await saveS();
-  await saveInsumosToDB(id);
   if(inp)inp.value='';
   renderInsumos();updateAlertPill();
   showToast(`✓ +${fmtQ(g,p.u)} de ${p.n}`);
@@ -3844,12 +4035,11 @@ async function quickInsSal(id){
   if(g<=0){showToast('Ingresa una cantidad');return;}
   const cur=S.insumos[id]||0;
   if(g>cur){showToast('Stock insuficiente');return;}
-  S.insumos[id]=cur-g;
   const costo=consumirLotes(id,g);
   const p=INSUMOS.find(x=>x.id===id);
   S.insHist.unshift({tipo:'salida',nombre:p.n,weights:[g],user:S.users.insEntrada||'Andres',total:g,ref:`Costo: ${fmtM(costo,2)}`,time:new Date().toLocaleString('es-MX')});
+  await movInsumos({[id]:g},-1,'ajuste','Salida manual');
   await saveS();
-  await saveInsumosToDB(id);
   if(inp)inp.value='';
   renderInsumos();updateAlertPill();
   showToast(`✓ −${fmtQ(g,p.u)} de ${p.n}`);
@@ -3911,15 +4101,40 @@ function openInsumoDetalle(id){
 
 async function saveInsumosToDB(id){
   const sb=getSB();if(!sb)return;
+  if(_ledger) return;   // con supabase/011 el stock en la nube lo lleva la suma de movimientos, no se escribe directo
   try{ const {error}=await sb.from('fondo_insumos').upsert({id,stock:S.insumos[id]}); if(error) throw error; }
   catch(e){ avisoNube('insumos', e); }
+}
+// ----- Movimientos de inventario (supabase/011): el stock es la suma de movimientos; nunca se edita a mano -----
+// tipo: venta_teorica | compra | conteo | merma | ajuste. Si no se pueden subir, quedan en este dispositivo y se reintentan.
+let _ledger=false;   // true cuando existe fondo_movimientos (se detecta al sincronizar)
+const MOV_PEND_KEY='fondo_mov_pend';
+function movPend(){ try{ return JSON.parse(localStorage.getItem(MOV_PEND_KEY)||'[]'); }catch(e){ return []; } }
+function setMovPend(a){ try{ localStorage.setItem(MOV_PEND_KEY,JSON.stringify(a)); }catch(e){} }
+async function movInsumos(map,signo,tipo,ref){
+  const fecha=new Date().toISOString(), rows=[];
+  Object.keys(map||{}).forEach(id=>{
+    const c=signo*(+map[id]||0); if(!(Math.abs(c)>0.0001)) return;
+    S.insumos[id]=(S.insumos[id]||0)+c;
+    rows.push({insumo_id:id,tipo,cantidad:Math.round(c*1000)/1000,referencia:ref||null,usuario:S.activeUser||'',fecha});
+  });
+  if(!rows.length) return true;
+  if(!_ledger){ for(const r of rows) await saveInsumosToDB(r.insumo_id); return true; }   // sin 011: stock directo, como antes
+  const sb=getSB();
+  try{ if(!sb) throw new Error('sin conexión'); const {error}=await sb.from('fondo_movimientos').insert(rows); if(error) throw error; return true; }
+  catch(e){ setMovPend(movPend().concat(rows)); avisoNube('movimientos de inventario (quedan aquí y se reintentan solos)',e); return false; }
+}
+async function subirMovPend(){
+  const sb=getSB(), pend=movPend(); if(!sb||!_ledger||!pend.length) return;
+  const {error}=await sb.from('fondo_movimientos').insert(pend);
+  if(!error) setMovPend([]);
 }
 
 // ================================================================
 // MODAL TERMINADO RECETA — con descuento de insumos
 // ================================================================
 // Insumos EXACTOS que consume una receta: cantidades reales de sus ingredientes × factor (en g / ml / pza)
-const HOJA_G={albahaca:0.4};   // gramos aprox. por hoja
+const HOJA_G={albahaca:0.4,laurel:0.2};   // gramos aprox. por hoja (laurel: 0.2 g, el mismo dato del caviar)
 function insIdForIng(k){ return (typeof PRICE_ALIAS!=='undefined'&&PRICE_ALIAS[k])||k; }
 function recipeInsumoNeeds(rk,factor){
   const rec=R[rk], out={}; if(!rec) return out;
@@ -4005,30 +4220,22 @@ async function confirmReg(){
   if(total===0){showToast('Ingresa los pesos');return;}
   const rk=S.guide.recKey||S.currentRec;
   if(!rk){showToast('Sin receta seleccionada');return;}
-  // Estricto: si faltan insumos, primero se registran
-  if(faltantesReg(rk).length){ openFaltan(rk); return; }
+  // Los insumos crudos ya no se descuentan al producir: los descuenta cada venta expandiendo la receta
+  // (movimientos "venta_teorica"). Descontarlos también aquí los contaría dos veces.
   const invId=R[rk].invId;
   let _costoLote=0; calcConsumo(rk).forEach(c=>{ _costoLote+=c.need*insFifoPrecio(c.id)/pdiv(c.id); });   // costo FIFO antes de descontar
   if(invId&&S.inv[invId]!==undefined){ S.inv[invId]=(S.inv[invId]||0)+total; if(total>0&&_costoLote>0) addProdLote(invId,total,_costoLote/total); }
   registrarProduccion(rk,total,_costoLote);
   const nota=document.getElementById('mRegNota')?.value?.trim()||'';
   const h=addHist('entrada',R[rk].name,weights,S.users.reg,nota);
-  // Descontar insumos (FIFO por lotes)
-  calcConsumo(rk).forEach(c=>{
-    S.insumos[c.id]=Math.max(0,(S.insumos[c.id]||0)-c.need);
-    const costo=consumirLotes(c.id,c.need);
-    const insData=INSUMOS.find(x=>x.id===c.id);
-    S.insHist.unshift({tipo:'salida',nombre:insData?.n||c.id,weights:[c.need],user:S.users.reg,total:c.need,ref:`Receta: ${R[rk].name} · costo ${fmtM(costo,2)}`,time:new Date().toLocaleString('es-MX')});
-  });
   await saveS();
   const okInv=invId?await saveInvToDB(invId):true;
   h.cat=await saveHistToDB({tipo:'entrada',nombre:R[rk].name,weights,user:S.users.reg,total,nota});
   saveS();
-  calcConsumo(rk).forEach(c=>saveInsumosToDB(c.id));
   const notaEl=document.getElementById('mRegNota'); if(notaEl) notaEl.value='';
   clearGuideProgress();
   closeM('mReg');
-  if(okInv&&h.cat) showToast(`✓ ${fmtQ(total,unitOfInv(invId))} registrado — insumos descontados`);
+  if(okInv&&h.cat) showToast(`✓ ${fmtQ(total,unitOfInv(invId))} registrado`);
   renderDash();renderInsumos();updateAlertPill();
 }
 
@@ -4122,9 +4329,58 @@ function costPerGProd(prodId){
   const l=(S.prodLotes&&S.prodLotes[prodId]||[]).find(x=>x.g>0.001);
   return l?l.cpg:costPerGRecipe(prodId);
 }
+// ----- Consumo teórico: cuánto insumo se va por gramo de sub-receta y por venta -----
+// Insumo por gramo de producto = cantidad en la sub-receta ÷ lo que rinde (rindeG, o masa × rendPct). En unidad del insumo (pza para huevo).
+function perGramoReceta(rk){
+  const ins=RECIPE_INSUMOS[rk], rec=R[rk]; if(!ins||!rec) return null;
+  const out={};
+  if(rec.rindeG>0){ const base=rec.ing[0].a||1000; ins.forEach(i=>{ out[i.id]=(out[i.id]||0)+toInsBaseF(i.id,i.ratio*base/rec.rindeG); }); return out; }
+  const massG=ins.reduce((s,i)=>s+i.ratio*1000,0)*(rec.rendPct||1); if(!(massG>0)) return out;
+  ins.forEach(i=>{ out[i.id]=(out[i.id]||0)+toInsBaseF(i.id,i.ratio*1000/massG); });
+  return out;
+}
+function toInsBaseF(id,g){ const z=INS_PZA[id]; return (z&&z.eq>0)?g/z.eq:g; }   // como toInsBase, sin redondear
+// Extras que venden las plataformas. g:null = gramaje sin definir (TODO Andres): no se descuenta y se avisa.
+const VENTA_EXTRAS={
+  extra_mantequilla:{n:'Mantequilla Café de París (extra)',comps:[{id:'mantequillaentrecot',g:null}]},
+  extra_salsavodka:{n:'Salsa vodka (extra)',comps:[{id:'salsavodka',g:null}]},
+  papas_poivre:{n:'Papas con salsa Poivre',papas:'clasica',comps:[{id:'aupoivre',g:null}]},
+  papas_mantequilla:{n:'Papas con mantequilla Café de París',papas:'clasica',comps:[{id:'mantequillaentrecot',g:null}]},
+};
+// Expande los productos de una venta: producto preparado (prod), insumos crudos (ins), empaque (emp) y lo que no tiene receta
+function consumoVenta(items){
+  const G=S.bagGramajes||DEFAULT_BAG_GRAMAJES, pc=papasCfg(), r={prod:{},ins:{},emp:{},sinReceta:[],sinGramaje:[]};
+  const add=(o,id,q)=>{ if(q>0) o[id]=(o[id]||0)+q; };
+  const papas=(g,ver)=>{ const n=papasNeeds(g,ver); Object.keys(n).forEach(id=>add(r.ins,id,n[id])); };
+  const comp=(id,g,origen)=>{
+    if(!id||id==='nuevo') return;
+    if(g==null){ r.sinGramaje.push(`${origen}: ${(INV.find(p=>p.id===id)||{}).n||id}`); return; }
+    if(PAPAS_COMP_IDS.includes(id)) return papas(g,'clasica');
+    if(INV.some(p=>p.id===id)){
+      add(r.prod,id,g);
+      const pg=PROD_TO_RECIPE[id]&&perGramoReceta(PROD_TO_RECIPE[id]);
+      if(pg) Object.keys(pg).forEach(i=>add(r.ins,i,pg[i]*g)); else r.sinReceta.push(`${origen}: ${id}`);
+      return;
+    }
+    if(INSUMOS.some(x=>x.id===id)) return add(r.ins,id,g);
+    r.sinReceta.push(`${origen}: ${id}`);
+  };
+  let bags=0, porc=0;
+  Object.entries(items||{}).forEach(([k,q])=>{
+    q=+q||0; if(!(q>0)) return;
+    if(BAG_NAMES[k]){ bags+=q; (G[k]||[]).forEach(c=>comp(c.id,(c.g||0)*q,BAG_NAMES[k])); }
+    else if(PAPAS_VER[k]){ porc+=q; const v=PAPAS_VER[k]; papas((k==='papaspp'?pc.ppPapasG:pc.gramos)*q,v); if(k==='papaspp') comp('pulledpork',pc.ppG*q,'Papas Fondo'); }
+    else if(VENTA_EXTRAS[k]){ const x=VENTA_EXTRAS[k]; if(x.papas){ porc+=q; papas(pc.gramos*q,x.papas); } x.comps.forEach(c=>comp(c.id,c.g==null?null:c.g*q,x.n)); }
+    else if(k!=='papasextra') r.sinReceta.push(`Producto sin receta: ${k}`);
+  });
+  getEmpaques().forEach(e=>add(r.emp,e.id,(e.porBag||0)*bags+(e.porPapas||0)*porc));
+  return r;
+}
 function costPerGRecipe(prodId){
   const rk=PROD_TO_RECIPE[prodId]; if(!rk) return 0;
   const ins=RECIPE_INSUMOS[rk]; const rec=R[rk]; if(!ins||!rec) return 0;
+  // Con rendimiento en gramos (rindeG): costo de la receta tal cual ÷ lo que rinde. Las proporciones son por la base (ing[0]).
+  if(rec.rindeG>0){ const base=rec.ing[0].a||1000; return ins.reduce((s,i)=>s+i.ratio*base*getCostPerG(i.id),0)/rec.rindeG; }
   let cost=0, massKg=0;
   ins.forEach(i=>{ cost+=i.ratio*1000*getCostPerG(i.id); massKg+=i.ratio; });
   const finishedG = massKg*1000*(rec.rendPct||1);
@@ -4141,7 +4397,7 @@ function baguetteCostBreakdown(bagKey){
   comps.forEach(c=>{
     if(!c.id||c.id==='nuevo') return;
     if(PAPAS_COMP_IDS.includes(c.id)){
-      rows.push({n:(c.id==='papas_top'?'Papas sobre el baguette':'Papas incluidas (en la caja)'), papas:true, det:`${fmtQ(c.g,'g')} · papas + rub + aceite de freidora`, cost:papasPortionCost('clasica',c.g)});
+      rows.push({n:c.n||(c.id==='papas_top'?'Papas sobre el baguette':'Papas incluidas (en la caja)'), papas:true, det:`${fmtQ(c.g,'g')} fritas (${fmtQ(Math.round(papasCongeladas(c.g)*10)/10,'g')} congeladas) · papas + rub + aceite de freidora`, cost:papasPortionCost('clasica',c.g)});
       return;
     }
     if(PIECE_IDS.includes(c.id)){
@@ -4671,6 +4927,25 @@ function filasInsumos(keys,esAndres){
       ${edit}</div>`;
   }).join('');
 }
+// Lo que falta para que el costeo sea exacto: se arma solo con los datos (no hay que mantener la lista a mano)
+function costeoTodos(){
+  const out=[], G=S.bagGramajes||DEFAULT_BAG_GRAMAJES, vistos=new Set();
+  const revisar=(id,donde)=>{
+    if(vistos.has(id)) return; vistos.add(id);
+    const rk=PROD_TO_RECIPE[id];
+    if(rk&&R[rk]){
+      if(R[rk].todo) out.push(`${R[rk].name}: ${R[rk].todo}`);
+      (RECIPE_INSUMOS[rk]||[]).forEach(i=>revisar(i.id,R[rk].name));
+      return;
+    }
+    if(INSUMOS.some(x=>x.id===id)&&!(insFifoPrecio(id)>0)) out.push(`Sin precio: ${insName(id)} (se usa en ${donde}). Captúralo en Configuración → Libro de precios.`);
+  };
+  activeBagKeys().forEach(b=>(G[b]||[]).forEach(c=>{ if(c.id&&!PAPAS_COMP_IDS.includes(c.id)) revisar(c.id,BAG_NAMES[b]); }));
+  if(isAparte('caldo')) out.push('DIP: el consomé va en contenedor aparte, pero ese contenedor no está en el costeo. Si lleva contenedor, agrégalo a los gramajes del DIP.');
+  out.push('Echalote frito: la receta cuenta los 400 ml de aceite completos como costo y como peso. Falta medir cuánto aceite absorbe de verdad.');
+  out.push('Caja de baguette y stickers siguen sumándose a todas las baguettes (Empaques). Tu composición nueva no los menciona: confirma si siguen.');
+  return out;
+}
 function renderCostos(){
   // En Administración la pantalla de costos vive dentro del Dashboard
   const enDash=_modo==='admin'&&document.getElementById('page-dash')?.classList.contains('on');
@@ -4681,7 +4956,11 @@ function renderCostos(){
   if(!keys.includes(_costoBag)) _costoBag=keys[0];
   const k=_costoBag, rows=baguetteCostBreakdown(k), total=rows.reduce((s,r)=>s+r.cost,0), mx=Math.max(...rows.map(r=>r.cost),1);
   const p=bagCostParts(k), esAndres=S.activeUser==='Andres', bru=finMode()==='bruta';
-  el.innerHTML=`
+  const todos=costeoTodos();
+  el.innerHTML=`${todos.length?`<div class="card" style="border-color:rgba(232,180,80,.45)">
+    <div class="card-title" style="color:var(--dorado-light)">⚠ Pendientes de costeo (TODO · Andres)</div>
+    ${todos.map(t=>`<div style="font-size:13px;color:var(--text2);padding:6px 0;border-bottom:1px solid var(--border);line-height:1.45">${costoEsc(t)}</div>`).join('')}
+  </div>`:''}
   <div class="card">
     <div class="card-title"><span class="icon"><svg class="ic"><use href="#i-coin"/></svg></span>Ficha de costo</div>
     <div style="overflow-x:auto;margin-bottom:12px"><div class="seg" role="group" aria-label="Baguette">${keys.map(b=>`<button class="${b===k?'on':''}" onclick="setCostoBag('${b}')">${BAG_NAMES[b]}</button>`).join('')}</div></div>
@@ -5024,40 +5303,11 @@ async function confirmVenta(){
 }
 async function registrarVenta(t){
   const bolsas=parseInt(document.getElementById('ventaBolsas')?.value)||0;
-  const gramajes=S.bagGramajes||DEFAULT_BAG_GRAMAJES;
-  const items={}; const touched={inv:new Set(),ins:new Set()}; const pcfg=papasCfg();
-  // Foto del stock antes de descontar: si se anula la venta se devuelve exactamente lo que se descontó
-  // (si no había stock suficiente, se descontó menos de lo teórico)
-  const fotoAntes={inv:{...S.inv},ins:{...S.insumos},emp:{...S.empaqueStock}};
-  // Descontar producto final + insumos (pan por pieza, papas con su rub y aceite)
-  VENTA_ITEMS.filter(i=>i.tipo==='bag').forEach(b=>{
-    const q=_ventaQty[b.k]||0; if(q<=0) return;
-    items[b.k]=q;
-    (gramajes[b.k]||[]).forEach(c=>{
-      if(!c.id||c.id==='nuevo') return;
-      const amt=(c.g||0)*q;
-      if(PAPAS_COMP_IDS.includes(c.id)){ consumePapas(amt,'clasica',touched); return; }
-      if(INV.find(p=>p.id===c.id)){ S.inv[c.id]=Math.max(0,(S.inv[c.id]||0)-amt); consumirProdLote(c.id,amt); touched.inv.add(c.id); }
-      else if(INSUMOS.find(x=>x.id===c.id)){ S.insumos[c.id]=Math.max(0,(S.insumos[c.id]||0)-amt); consumirLotes(c.id,amt); touched.ins.add(c.id); }
-    });
-  });
-  Object.keys(PAPAS_VER).forEach(k=>{
-    const q=_ventaQty[k]||0; if(q<=0) return;
-    items[k]=q; consumePapas((k==='papaspp'?pcfg.ppPapasG:pcfg.gramos)*q,PAPAS_VER[k],touched);
-    if(k==='papaspp'){ S.inv.pulledpork=Math.max(0,(S.inv.pulledpork||0)-pcfg.ppG*q); consumirProdLote('pulledpork',pcfg.ppG*q); touched.inv.add('pulledpork'); }
-  });
-  if(_ventaQty['papasextra']>0) items['papasextra']=_ventaQty['papasextra'];
-  // Descontar empaques (piezas)
-  getEmpaques().forEach(e=>{
-    let used=(e.porBag||0)*t.totalBags + (e.porPapas||0)*t.papas;
-    if(e.id==='bolsa_pedido') used+=bolsas;
-    if(used>0) S.empaqueStock[e.id]=Math.max(0,(S.empaqueStock[e.id]||0)-used);
-  });
-  const desc={};
-  [['inv',S.inv],['ins',S.insumos],['emp',S.empaqueStock]].forEach(([t,o])=>Object.keys(o).forEach(id=>{
-    const d=(fotoAntes[t][id]||0)-(o[id]||0); if(d>0.0001) (desc[t]=desc[t]||{})[id]=d; }));
-  // Registrar venta
+  const items={};
+  VENTA_ITEMS.forEach(it=>{ const q=_ventaQty[it.k]||0; if(q>0) items[it.k]=q; });
   const now=new Date();
+  const desc=aplicarConsumoVenta(items,bolsas,`Venta ${ventaPlatName(_ventaPlat)}${t.orden?' #'+t.orden:''} · ${now.toLocaleString('es-MX')}`);
+  // Registrar venta
   const venta={
     plat:_ventaPlat, items, bolsas, orden:t.orden||'', desc,
     bruto:t.bruto, comision:t.comision, neto:t.neto, costo:t.costo, utilidad:t.utilidad,
@@ -5068,11 +5318,9 @@ async function registrarVenta(t){
   S.ventas.unshift(venta);
   if(S.ventas.length>500)S.ventas.pop();
   await saveS();
-  // Sync
-  touched.inv.forEach(id=>saveInvToDB(id)); touched.ins.forEach(id=>saveInsumosToDB(id));
   saveVentaToDB(venta);
-  getEmpaques().forEach(e=>saveEmpaqueToDB(e.id));
   closeM('mVenta');
+  if(desc.sinReceta.length||desc.sinGramaje.length) showToast('⚠ Venta registrada, pero hay productos sin receta o sin gramaje: revisa Insumos → Reorden.');
   showToast(`✓ Venta registrada · utilidad ${fmtM(t.utilidad,0)}`);
   renderVentas(); renderDash(); renderInv(); renderInsumos(); updateAlertPill();
   openPackTicket(items,venta.plat,bolsas);
@@ -5101,42 +5349,30 @@ async function saveVentaToDB(v){
   try{ if(!sb) throw new Error('sin conexión'); await insertVenta(sb,v); }
   catch(e){ setVentasPend(ventasPend().concat(v)); avisoNube('venta (queda guardada aquí y se reintenta sola)', e); }
 }
-// Devuelve al inventario lo que descontó una venta. Si la venta se registró en este dispositivo se usa lo que
-// realmente se descontó (v.desc); si no, se recalcula con los gramajes actuales.
-// Los totales de stock vuelven; los lotes FIFO de insumos no se reconstruyen.
+// Descuenta lo que se llevó una venta: producto preparado (su stock y sus lotes), insumos crudos expandidos por receta
+// (movimientos "venta_teorica") y empaque. Devuelve lo descontado para poder anular exactamente eso.
+function aplicarConsumoVenta(items,bolsas,ref){
+  const c=consumoVenta(items), desc={inv:{},ins:c.ins,emp:{},sinReceta:c.sinReceta,sinGramaje:c.sinGramaje};
+  Object.entries(c.prod).forEach(([id,g])=>{
+    const antes=S.inv[id]||0; S.inv[id]=Math.max(0,antes-g); consumirProdLote(id,g);
+    desc.inv[id]=antes-S.inv[id]; saveInvToDB(id);
+  });
+  Object.entries(c.ins).forEach(([id,q])=>consumirLotes(id,q));   // lotes FIFO (costo real)
+  movInsumos(c.ins,-1,'venta_teorica',ref);
+  const emp={...c.emp}; if(bolsas>0) emp.bolsa_pedido=(emp.bolsa_pedido||0)+bolsas;
+  Object.entries(emp).forEach(([id,q])=>{
+    const antes=S.empaqueStock[id]||0; S.empaqueStock[id]=Math.max(0,antes-q);
+    desc.emp[id]=antes-S.empaqueStock[id]; saveEmpaqueToDB(id);
+  });
+  return desc;
+}
+// Devuelve al inventario lo que descontó una venta (v.desc si se registró en este dispositivo; si no, se recalcula
+// con las recetas actuales). Los insumos regresan como movimiento "ajuste"; los lotes FIFO no se reconstruyen.
 function devolverInventarioVenta(v){
-  const gramajes=S.bagGramajes||DEFAULT_BAG_GRAMAJES, pcfg=papasCfg(), touched={inv:new Set(),ins:new Set()};
-  const addIns=(id,q)=>{ if(!(q>0)||!INSUMOS.some(x=>x.id===id)) return; S.insumos[id]=(S.insumos[id]||0)+q; touched.ins.add(id); };
-  const addInv=(id,q)=>{ if(!(q>0)) return; S.inv[id]=(S.inv[id]||0)+q; addProdLote(id,q,0); touched.inv.add(id); };
-  if(v.desc){
-    Object.entries(v.desc.inv||{}).forEach(([id,q])=>addInv(id,q));
-    Object.entries(v.desc.ins||{}).forEach(([id,q])=>addIns(id,q));
-    Object.entries(v.desc.emp||{}).forEach(([id,q])=>{ S.empaqueStock[id]=(S.empaqueStock[id]||0)+q; });
-    return touched;
-  }
-  const papas=(g,ver)=>{ const n=papasNeeds(g,ver); Object.keys(n).forEach(id=>addIns(id,n[id])); };
-  let totalBags=0, nPapas=0;
-  Object.entries(v.items||{}).forEach(([k,q])=>{
-    if(!(q>0)) return;
-    if(BAG_NAMES[k]){
-      totalBags+=q;
-      (gramajes[k]||[]).forEach(c=>{
-        if(!c.id||c.id==='nuevo') return;
-        const amt=(c.g||0)*q;
-        if(PAPAS_COMP_IDS.includes(c.id)) papas(amt,'clasica');
-        else if(INV.some(p=>p.id===c.id)) addInv(c.id,amt);
-        else addIns(c.id,amt);
-      });
-    } else if(PAPAS_VER[k]){
-      nPapas+=q; papas((k==='papaspp'?pcfg.ppPapasG:pcfg.gramos)*q,PAPAS_VER[k]);
-      if(k==='papaspp') addInv('pulledpork',pcfg.ppG*q);
-    }
-  });
-  getEmpaques().forEach(e=>{
-    let used=(e.porBag||0)*totalBags+(e.porPapas||0)*nPapas;
-    if(e.id==='bolsa_pedido') used+=v.bolsas||0;
-    if(used>0) S.empaqueStock[e.id]=(S.empaqueStock[e.id]||0)+used;
-  });
+  const d=v.desc||(()=>{ const c=consumoVenta(v.items), emp={...c.emp}; if(v.bolsas) emp.bolsa_pedido=(emp.bolsa_pedido||0)+v.bolsas; return {inv:c.prod,ins:c.ins,emp}; })();
+  const touched={inv:new Set(),insMap:d.ins||{}};
+  Object.entries(d.inv||{}).forEach(([id,q])=>{ if(q>0){ S.inv[id]=(S.inv[id]||0)+q; addProdLote(id,q,0); touched.inv.add(id); } });
+  Object.entries(d.emp||{}).forEach(([id,q])=>{ S.empaqueStock[id]=(S.empaqueStock[id]||0)+q; });
   return touched;
 }
 // Anular: la venta no se borra; se marca como anulada (quién, cuándo, por qué) y deja de contar en reportes
@@ -5161,9 +5397,176 @@ async function anularVenta(i){
   S.ventas.splice(i,1);
   (S.ventasAnuladas=S.ventasAnuladas||[]).unshift({...v,anulada:true,anuladaPor:S.activeUser||'',motivoAnul:motivo});
   await saveS();
-  touched.inv.forEach(id=>saveInvToDB(id)); touched.ins.forEach(id=>saveInsumosToDB(id)); getEmpaques().forEach(e=>saveEmpaqueToDB(e.id));
+  touched.inv.forEach(id=>saveInvToDB(id)); movInsumos(touched.insMap,1,'ajuste',`Anulación venta ${ventaPlatName(v.plat)}${v.orden?' #'+v.orden:''}: ${motivo}`); getEmpaques().forEach(e=>saveEmpaqueToDB(e.id));
   showToast('Venta anulada · inventario devuelto');
   renderVentas(); renderDash(); renderInv(); renderInsumos(); updateAlertPill();
+}
+// ----- Importar ventas de Uber Eats / Rappi (CSV) -----
+// Columnas por plataforma: editables en la vista previa y guardadas en la config compartida "importCfg".
+// Solo se leen estas columnas; nombre, teléfono y dirección del cliente nunca se leen ni se guardan.
+const IMPORT_DEF={
+  uber:{plat:'uber',n:'Uber Eats',firma:['Id. del pedido','Nombre del artículo'],ok:['completado'],
+    cols:{folio:'Id. del pedido',fecha:'Fecha del pedido',hora:'Hora a la que se aceptó el pedido',producto:'Nombre del artículo',cantidad:'Cantidad final',total:'Ventas (con IVA)',comision:'Tasa de servicio (con IVA)',estado:'Estado del pedido',precio:'Precio unitario'}},
+  // TODO Andres: columnas de Rappi por confirmar con un reporte que traiga productos (el de órdenes solo trae totales)
+  rappi:{plat:'rappi',n:'Rappi',firma:['Orden','Total'],ok:['terminada','entregada','finalizada'],
+    cols:{folio:'Orden',fecha:'Fecha creación',hora:'',producto:'Producto',cantidad:'Cantidad',total:'Total',comision:'Comisión',estado:'Estado',precio:''}},
+};
+const IMPORT_CAMPOS=[['folio','Folio del pedido'],['fecha','Fecha'],['hora','Hora'],['producto','Producto'],['cantidad','Cantidad'],['total','Total'],['comision','Comisión'],['estado','Estado'],['precio','Precio unitario']];
+// Nombre del producto en la plataforma (sin acentos, minúsculas) → producto de FONDO
+const IMPORT_PRODMAP_DEF={'la paris':'entrecot','baguette vodka':'vodka','baguette pulled pork':'pulledpork','au poivre':'poivre',
+  'papas a la francesa con salsa poivre (sin licor)':'papas_poivre','papas a la francesa con mantequilla cafe de paris (extras)':'papas_mantequilla',
+  'mantequilla cafe de paris (extra)':'extra_mantequilla','salsa tomate al vodk (extra)':'extra_salsavodka'};
+function normTxt(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/ /g,' ').replace(/\s+/g,' ').trim().toLowerCase(); }
+function importCfg(){ const c=S.importCfg||{}; return {cols:c.cols||{},prodMap:{...IMPORT_PRODMAP_DEF,...(c.prodMap||{})}}; }
+function importCols(plat){ return {...IMPORT_DEF[plat].cols,...(importCfg().cols[plat]||{})}; }
+function importOpciones(){
+  return [...Object.keys(BAG_NAMES).map(k=>[k,'Baguette '+BAG_NAMES[k]]),
+    ...Object.keys(PAPAS_VER).map(k=>[k,(VENTA_ITEMS_ALL.find(i=>i.k===k)||{}).n||k]),
+    ...Object.entries(VENTA_EXTRAS).map(([k,x])=>[k,x.n]),['ignorar','No es producto (ignorar)']];
+}
+// CSV tolerante: coma o punto y coma, comillas y saltos de línea dentro de comillas
+function parseCSV(txt){
+  txt=String(txt).replace(/^﻿/,'');
+  const first=txt.split(/\r?\n/)[0]||'', sep=first.split(';').length>first.split(',').length?';':',';
+  const rows=[]; let row=[], cur='', q=false;
+  for(let i=0;i<txt.length;i++){
+    const ch=txt[i];
+    if(q){ if(ch==='"'){ if(txt[i+1]==='"'){ cur+='"'; i++; } else q=false; } else cur+=ch; }
+    else if(ch==='"') q=true;
+    else if(ch===sep){ row.push(cur); cur=''; }
+    else if(ch==='\n'||ch==='\r'){ if(ch==='\r'&&txt[i+1]==='\n') i++; row.push(cur); rows.push(row); row=[]; cur=''; }
+    else cur+=ch;
+  }
+  if(cur!==''||row.length){ row.push(cur); rows.push(row); }
+  return rows.filter(r=>r.some(x=>String(x).trim()!==''));
+}
+function numMX(s){ const t=String(s==null?'':s).replace(/[$\s]/g,'').replace(/,(?=\d{3}(\D|$))/g,''); const n=parseFloat(t); return isNaN(n)?0:n; }
+// "05/11/26" + "19:07" (Uber, día/mes/año) o "2026-11-06 22:14:17" (Rappi), en hora local
+function fechaImport(f,h){
+  f=String(f||'').trim(); h=String(h||'').trim(); let y,m,d,hh=12,mi=0,r;
+  if((r=/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?/.exec(f))){ y=+r[1]; m=+r[2]; d=+r[3]; if(r[4]){ hh=+r[4]; mi=+r[5]; } }
+  else if((r=/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})/.exec(f))){ d=+r[1]; m=+r[2]; y=+r[3]; if(y<100) y+=2000; }
+  else return null;
+  const rh=/^(\d{1,2}):(\d{2})/.exec(h); if(rh){ hh=+rh[1]; mi=+rh[2]; }
+  const dt=new Date(y,m-1,d,hh,mi); return isNaN(dt)?null:dt;
+}
+let _imp=null, _importando=false;
+function openImportModal(){
+  _imp=null; const f=document.getElementById('importFile'); if(f) f.value='';
+  document.getElementById('importPreview').innerHTML=''; const b=document.getElementById('importBtn'); b.disabled=true; b.textContent='Importar';
+  openM('mImport');
+}
+function importLeerArchivo(inp){
+  const file=inp.files&&inp.files[0]; if(!file) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    const rows=parseCSV(rd.result||'');
+    if(rows.length<2){ document.getElementById('importPreview').innerHTML='<div class="empty-note">El archivo no tiene renglones.</div>'; return; }
+    const head=rows[0].map(h=>String(h).replace(/ /g,' ').trim()), nh=head.map(normTxt);
+    const plat=Object.keys(IMPORT_DEF).find(p=>IMPORT_DEF[p].firma.every(c=>nh.includes(normTxt(c))))||'';
+    _imp={head,rows:rows.slice(1),plat}; importRender();
+  };
+  rd.readAsText(file,'utf-8');
+}
+// Agrupa por pedido. Uber pone folio y totales en un renglón y los artículos debajo con el folio vacío.
+function importAnalizar(){
+  const {head,rows,plat}=_imp, cols=importCols(plat), idx={};
+  Object.keys(cols).forEach(k=>{ const w=normTxt(cols[k]); idx[k]=w?head.findIndex(h=>normTxt(h)===w):-1; });
+  const val=(r,k)=>idx[k]>=0?String(r[idx[k]]==null?'':r[idx[k]]).trim():'';
+  const pm=importCfg().prodMap, ok=IMPORT_DEF[plat].ok, pedidos=[], porFolio={};
+  let ultimo=null;
+  rows.forEach(r=>{
+    let folio=val(r,'folio').replace(/^#/,'');
+    if(folio) ultimo=folio; else folio=ultimo;
+    if(!folio) return;
+    let p=porFolio[folio];
+    if(!p){ p=porFolio[folio]={folio,fecha:null,estado:'',total:0,totalItems:0,comision:0,items:{},sinMapa:{},modif:0}; pedidos.push(p); }
+    const fd=fechaImport(val(r,'fecha'),val(r,'hora')); if(fd&&!p.fecha) p.fecha=fd;
+    const est=val(r,'estado'); if(est&&!p.estado) p.estado=est;
+    p.comision+=Math.abs(numMX(val(r,'comision')));
+    const prod=val(r,'producto'), tot=numMX(val(r,'total'));
+    if(!prod){ if(tot) p.total=tot; return; }   // renglón del pedido (totales)
+    const q=numMX(val(r,'cantidad'))||1, key=pm[normTxt(prod)];
+    p.totalItems+=tot;
+    const pu=numMX(val(r,'precio')); if(pu>0&&tot>pu*q+0.5) p.modif+=tot-pu*q;
+    if(!key) p.sinMapa[prod]=(p.sinMapa[prod]||0)+q;
+    else if(key!=='ignorar') p.items[key]=(p.items[key]||0)+q;
+  });
+  const ya=new Set((S.ventas||[]).concat(S.ventasAnuladas||[]).filter(v=>v.plat===IMPORT_DEF[plat].plat&&v.orden).map(v=>String(v.orden)));
+  pedidos.forEach(p=>{
+    if(!p.total) p.total=p.totalItems;
+    p.valido=!p.estado||ok.includes(normTxt(p.estado));
+    p.duplicado=ya.has(p.folio);
+    p.pend=Object.keys(p.sinMapa).length>0;
+    p.sinProductos=!Object.keys(p.items).length&&!p.pend;
+    p.listo=p.valido&&!p.duplicado&&!p.sinProductos&&!p.pend&&!!p.fecha;
+  });
+  return {cols,idx,pedidos};
+}
+function importNombre(k){ return (importOpciones().find(o=>o[0]===k)||[k,k])[1]; }
+function importRender(){
+  const el=document.getElementById('importPreview'), btn=document.getElementById('importBtn');
+  if(!_imp){ el.innerHTML=''; return; }
+  const platSel=`<div class="inp-group"><label class="lbl">Plataforma</label><select onchange="_imp.plat=this.value;importRender()"><option value="">— elige —</option>${Object.entries(IMPORT_DEF).map(([k,d])=>`<option value="${k}" ${_imp.plat===k?'selected':''}>${d.n}</option>`).join('')}</select></div>`;
+  if(!_imp.plat){ el.innerHTML=platSel+'<div class="empty-note">No reconocí el formato. Elige la plataforma y revisa las columnas.</div>'; btn.disabled=true; return; }
+  const a=importAnalizar(), plat=_imp.plat, ps=a.pedidos, listos=ps.filter(p=>p.listo);
+  const colsHtml=`<details style="margin:8px 0"><summary style="cursor:pointer;font-size:13px;color:var(--text2)">Columnas del archivo (${IMPORT_DEF[plat].n})</summary>
+    ${IMPORT_CAMPOS.map(([k,l])=>`<div style="display:grid;grid-template-columns:130px 1fr;gap:8px;align-items:center;margin:4px 0"><span style="font-size:12.5px;color:var(--text2)">${l}${a.idx[k]<0&&['folio','producto','total'].includes(k)?' ⚠':''}</span><select onchange="importSetCol('${k}',this.value)"><option value="">— no viene —</option>${_imp.head.map(h=>`<option ${a.cols[k]&&normTxt(h)===normTxt(a.cols[k])?'selected':''}>${costoEsc(h)}</option>`).join('')}</select></div>`).join('')}</details>`;
+  const sinMapa={}; ps.forEach(p=>Object.entries(p.sinMapa).forEach(([n,q])=>sinMapa[n]=(sinMapa[n]||0)+q));
+  const opts=importOpciones();
+  const mapaHtml=Object.keys(sinMapa).length?`<div class="lbl" style="margin-top:12px">Productos no reconocidos: asígnalos (se recuerda para la próxima)</div>${Object.entries(sinMapa).map(([n,q],i)=>`<div style="display:grid;grid-template-columns:1fr 180px;gap:8px;align-items:center;margin:5px 0"><span style="font-size:13px;color:var(--crema)">${costoEsc(n)} <span style="color:var(--text3)">× ${q}</span></span><select data-n="${costoEsc(normTxt(n))}" onchange="importMapear(this.dataset.n,this.value)"><option value="">— asignar —</option>${opts.map(([k,l])=>`<option value="${k}">${costoEsc(l)}</option>`).join('')}</select></div>`).join('')}`:'';
+  const est=p=>p.listo?'<span style="color:var(--verde-light)">listo</span>':p.duplicado?'<span style="color:var(--text3)">ya existe</span>':!p.valido?`<span style="color:var(--text3)">${costoEsc(p.estado)}</span>`:p.pend?'<span style="color:var(--dorado-light)">falta asignar</span>':p.sinProductos?'<span style="color:#ff8888">sin productos</span>':'<span style="color:#ff8888">sin fecha</span>';
+  const sinProd=ps.filter(p=>p.sinProductos&&p.valido&&!p.duplicado).length;
+  const modif=ps.filter(p=>p.listo&&p.modif>0);
+  el.innerHTML=platSel+colsHtml
+    +`<div style="font-size:13px;color:var(--text2);margin-top:8px">${ps.length} pedidos · <b style="color:var(--verde-light)">${listos.length} listos</b> · ${ps.filter(p=>p.duplicado).length} ya existen · ${ps.filter(p=>!p.valido).length} no completados</div>`
+    +mapaHtml
+    +(sinProd?`<div class="empty-note" style="margin-top:10px">${sinProd} pedido(s) no traen productos en este archivo: sin productos no se puede descontar inventario. Descarga el reporte con detalle de productos.</div>`:'')
+    +(modif.length?`<div class="empty-note" style="margin-top:10px">${modif.length} pedido(s) cobran modificadores que el reporte no detalla (${fmtM(modif.reduce((s,p)=>s+p.modif,0),0)}): se guarda el dinero, pero no se descuenta su inventario.</div>`:'')
+    +`<div style="overflow-x:auto;margin-top:12px"><table class="tbl"><thead><tr><th>Folio</th><th>Fecha</th><th>Productos</th><th style="text-align:right">Total</th><th style="text-align:right">Comisión</th><th>Estado</th></tr></thead><tbody>${ps.map(p=>`<tr><td>${costoEsc(p.folio)}</td><td style="white-space:nowrap">${p.fecha?p.fecha.toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'—'}</td><td style="font-size:12px">${Object.entries(p.items).map(([k,q])=>`${q}× ${costoEsc(importNombre(k))}`).join(', ')||'—'}</td><td style="text-align:right">${fmtM(p.total,0)}</td><td style="text-align:right">${fmtM(p.comision,2)}</td><td>${est(p)}</td></tr>`).join('')}</tbody></table></div>`;
+  btn.disabled=!listos.length; btn.textContent=listos.length?`Importar ${listos.length} venta(s)`:'Importar';
+}
+function importSetCol(k,v){ const c=S.importCfg=S.importCfg||{}; c.cols=c.cols||{}; c.cols[_imp.plat]={...(c.cols[_imp.plat]||{}),[k]:v}; saveS(); saveCfgToDB('importCfg',S.importCfg); importRender(); }
+function importMapear(nombre,key){ if(!key) return; const c=S.importCfg=S.importCfg||{}; c.prodMap={...(c.prodMap||{}),[nombre]:key}; saveS(); saveCfgToDB('importCfg',S.importCfg); importRender(); }
+// Costo de los productos de una venta con el costeo actual (un extra sin gramaje no suma; queda como TODO)
+function costoItems(items){
+  let c=0;
+  Object.entries(items).forEach(([k,q])=>{
+    if(BAG_NAMES[k]) c+=q*baguetteCost(k);
+    else if(PAPAS_VER[k]) c+=q*(papasPortionCost(PAPAS_VER[k])+empaqueCostPapas());
+    else if(VENTA_EXTRAS[k]){ const x=VENTA_EXTRAS[k]; if(x.papas) c+=q*(papasPortionCost(x.papas)+empaqueCostPapas()); x.comps.forEach(cp=>{ if(cp.g!=null) c+=q*cp.g*costPerGProd(cp.id); }); }
+  });
+  return c;
+}
+async function importConfirmar(){
+  if(_importando||!_imp) return;
+  const a=importAnalizar(), def=IMPORT_DEF[_imp.plat], listos=a.pedidos.filter(p=>p.listo);
+  if(!listos.length) return;
+  const sb=getSB(); if(!sb) return showToast('Sin conexión: no se puede importar ahora.');
+  _importando=true; const btn=document.getElementById('importBtn'); btn.disabled=true; btn.textContent='Importando…';
+  try{
+    // Idempotente: un folio que ya está en la nube para esta plataforma no se vuelve a insertar
+    const {data:ya,error:eYa}=await sb.from('fondo_ventas').select('orden').eq('plataforma',def.plat).in('orden',listos.map(p=>p.folio));
+    if(eYa) throw eYa;
+    const yaSet=new Set((ya||[]).map(r=>String(r.orden)));
+    let nuevos=0, repetidos=0, avisos=0;
+    for(const p of listos){
+      if(yaSet.has(p.folio)){ repetidos++; continue; }
+      const costo=costoItems(p.items), neto=p.total-p.comision;
+      const v={plat:def.plat,items:p.items,bolsas:0,orden:p.folio,bruto:p.total,comision:p.comision,neto,costo,utilidad:neto-costo,user:S.activeUser||'',ts:p.fecha.getTime(),
+        time:p.fecha.toLocaleDateString('es-MX',{day:'2-digit',month:'short'})+' '+p.fecha.toLocaleTimeString('es-MX',{hour:'2-digit',minute:'2-digit'})};
+      try{ await insertVenta(sb,v); }
+      catch(e){ if(e&&e.code==='23505'){ repetidos++; continue; } throw e; }   // folio repetido (supabase/011)
+      v.desc=aplicarConsumoVenta(p.items,0,`Venta ${def.n} #${p.folio} (importada)`);
+      if(v.desc.sinReceta.length||v.desc.sinGramaje.length) avisos++;
+      S.ventas.unshift(v); nuevos++;
+    }
+    S.ventas.sort((x,y)=>y.ts-x.ts); await saveS();
+    closeM('mImport');
+    showToast(`✓ ${nuevos} venta(s) importada(s)${repetidos?` · ${repetidos} ya existían`:''}${avisos?` · ${avisos} con extras sin gramaje`:''}`);
+    renderVentas(); renderDash(); renderInv(); renderInsumos(); updateAlertPill();
+  }catch(e){ avisoNube('importación de ventas',e); importRender(); }
+  finally{ _importando=false; }
 }
 async function subirVentasPend(){
   const sb=getSB(), pend=ventasPend(); if(!sb||!pend.length) return;
@@ -5491,40 +5894,54 @@ const DEFAULT_BAG_GRAMAJES = {
     {id:'papas_caja',n:'Papas incluidas (en la caja)',g:100},
     {id:'pan',n:'Pan Baguette',g:1},
   ],
+  // Composición confirmada por Andres (nov 2026). Papas en gramos FRITOS; contenedor y bolsa de papas en piezas.
+  // El papel aluminizado (1 por baguette) va en Empaques, igual para todas.
   entrecot:[
-    {id:'vacio',n:'Vacío Sous Vide',g:95},
+    {id:'vacio',n:'Vacío Sous Vide',g:90},
     {id:'mantequillaentrecot',n:'Mantequilla Café de París',g:40},
-    {id:'papas_top',n:'Papas sobre el baguette',g:100},
-    {id:'papas_caja',n:'Papas incluidas (en la caja)',g:100},
+    {id:'queso_gouda',n:'Queso Gouda',g:50},
+    {id:'echalote',n:'Echalote Frito',g:30},
+    {id:'papas_top',n:'Papas fritas',g:80},
+    {id:'bolsa_papas',n:'Bolsa de papas',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
   ],
   poivre:[
-    {id:'vacio',n:'Vacío Sous Vide',g:95},
+    {id:'vacio',n:'Vacío Sous Vide',g:90},
     {id:'aupoivre',n:'Salsa Au Poivre',g:94},
+    {id:'queso_gouda',n:'Queso Gouda',g:50},
     {id:'cebolla_frita',n:'Cebolla Frita',g:30},
-    {id:'arugula',n:'Arúgula',g:15},
-    {id:'mayoajneg',n:'Mayo Ajo Negro',g:35},
-    {id:'papas_caja',n:'Papas incluidas (en la caja)',g:100},
+    {id:'arugula',n:'Arúgula',g:10},
+    {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
+    {id:'contenedor',n:'Contenedor',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
   ],
   pulledpork:[
     {id:'pulledpork',n:'Pulled Pork',g:120},
     {id:'queso_parm',n:'Queso Parmesano',g:40},
-    {id:'mayonegra',n:'Mayo Negra',g:22},
-    {id:'caviarmostaza',n:'Caviar de semilla de mostaza',g:10},
-    {id:'papas_caja',n:'Papas incluidas (en la caja)',g:100},
+    {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
+    {id:'mayochipotle',n:'Mayo Chipotle',g:14},
+    {id:'colmorada',n:'Col Lombarda con Manzana',g:35},
+    {id:'caviarmostaza',n:'Caviar de semilla de mostaza',g:15},
+    {id:'contenedor',n:'Contenedor',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
   ],
   vodka:[
-    {id:'pollo',n:'Pollo Empanizado',g:110},
+    {id:'pollo',n:'Pollo Empanizado',g:90},
     {id:'salsavodka',n:'Salsa Vodka',g:150},
+    {id:'queso_gouda',n:'Queso Gouda',g:50},
     {id:'cebolla',n:'Cebolla Caramelizada',g:70},
-    {id:'mayoajneg',n:'Mayo Ajo Negro',g:35},
-    {id:'queso_provolone',n:'Queso Provolone',g:45},   // 45 g · falta pesarlo para confirmar
-    {id:'papas_caja',n:'Papas incluidas (en la caja)',g:100},
+    {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
+    {id:'contenedor',n:'Contenedor',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
   ],
 };
+// v7 (nov 2026): composición confirmada de Entrecôt, Poivre, Pulled Pork y Vodka. El DIP no cambia.
+// Solo corre en la sesión de Andres (los gramajes en la nube solo los escribe él).
+function applyCosteoV7(){
+  const G=JSON.parse(JSON.stringify(S.bagGramajes||DEFAULT_BAG_GRAMAJES));
+  ['entrecot','poivre','pulledpork','vodka'].forEach(k=>{ G[k]=JSON.parse(JSON.stringify(DEFAULT_BAG_GRAMAJES[k])); });
+  S.bagGramajes=G; S.fin={...finCfg(),ver:7};
+}
 
 const BAG_NAMES = {dip:'DIP',entrecot:'ENTRECÔT',poivre:'POIVRE',pulledpork:'PULLED PORK',vodka:'VODKA'};
 
@@ -5773,7 +6190,9 @@ function setBagActive(k,v){
   showToast(v?BAG_NAMES[k]+' activada':BAG_NAMES[k]+' pasó a inactivas');
 }
 const PAPAS_FIELDS=[
-  ['gramos','Gramos de papa por porción','g'],
+  ['gramos','Gramos de papa FRITA por porción','g'],
+  ['congG','Rendimiento: gramos de papa congelada…','g'],
+  ['fritoG','…que dan estos gramos fritos','g'],
   ['rubG','Rub: gramos de cada uno (sal, pimienta, perejil)','g'],
   ['ppPapasG','Papas Fondo: gramos de papa','g'],
   ['ppG','Papas Fondo: gramos de pulled pork','g'],
@@ -5869,11 +6288,10 @@ async function confirmInsEntrada(){
   const g=parseFloat(document.getElementById('mInsEntPeso').value)||0;
   if(g<=0){showToast('Ingresa una cantidad');return;}
   const id=S._insEntradaId;
-  S.insumos[id]=(S.insumos[id]||0)+g;
   const p=INSUMOS.find(x=>x.id===id);
   S.insHist.unshift({tipo:'entrada',nombre:p.n,weights:[g],user:S.users.insEntrada||'Andres',total:g,time:new Date().toLocaleString('es-MX')});
+  await movInsumos({[id]:g},1,'compra','Entrada');
   await saveS();
-  await saveInsumosToDB(id);
   closeM('mInsEntrada');
   renderInsumos();updateAlertPill();
   showToast(`✓ +${fmtQ(g,p.u)} de ${p.n}`);
@@ -5968,13 +6386,11 @@ function applyPriceBookV5(){
   S.migU=5;
 }
 // Baguette Pulled Pork: mayo trufa y chipotle ceden su lugar a mayo negra y caviar de mostaza. Idempotente.
+// Pulled Pork sin mayo trufada. (Antes también cambiaba la Mayo Chipotle por Mayo Negra; desde v7 la composición
+// confirmada lleva Mayo Ajo Negro + Mayo Chipotle, así que solo se quita la trufada si quedara.)
 function migrarPPMayoNegra(){
-  const g=S.bagGramajes&&S.bagGramajes.pulledpork; if(!g||!g.some(c=>c.id==='mayotrufa'||c.id==='mayochipotle')) return false;
-  const sin=g.filter(c=>c.id!=='mayotrufa'&&c.id!=='mayochipotle');
-  const i=Math.max(0,sin.findIndex(c=>c.id==='queso_parm')+1);
-  if(!sin.some(c=>c.id==='mayonegra')) sin.splice(i,0,{id:'mayonegra',n:'Mayo Negra',g:22});
-  if(!sin.some(c=>c.id==='caviarmostaza')) sin.splice(i+1,0,{id:'caviarmostaza',n:'Caviar de semilla de mostaza',g:10});
-  S.bagGramajes.pulledpork=sin; return true;
+  const g=S.bagGramajes&&S.bagGramajes.pulledpork; if(!g||!g.some(c=>c.id==='mayotrufa')) return false;
+  S.bagGramajes.pulledpork=g.filter(c=>c.id!=='mayotrufa'); return true;
 }
 // v6: papas con pulled pork pasan a 200 g de papa + 150 g de pulled pork y $95 Directo / $115 apps. Respeta lo editado.
 function applyPriceBookV6(){

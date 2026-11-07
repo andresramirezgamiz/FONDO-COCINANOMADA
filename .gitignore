@@ -4,3 +4,10 @@ supabase/
 *.xlsx
 *.md
 index.backup.html
+# Reportes de Uber/Rappi y otros datos de ventas: traen datos de clientes, nunca se suben
+*.csv
+*.pdf
+*.docx
+*.jpeg
+*.jpg
+*.gif
