@@ -1826,7 +1826,7 @@ mayodip:{
 const INSUMOS = [
   {id:'picana',n:'Picaña',cat:'Carniceria',precio:320},
   {id:'vacio_raw',n:'Vacío',cat:'Carniceria',precio:274.9},
-  {id:'espaldilla',n:'Espaldilla de Cerdo',cat:'Carniceria',precio:100},
+  {id:'espaldilla',n:'Espaldilla de Cerdo',cat:'Carniceria',precio:81},   // confirmado por Andres (nov 2026)
   {id:'pechuga_pollo',n:'Pechuga de Pollo',cat:'Carniceria',precio:160.5},
   {id:'mayonesa',n:'Mayonesa Hellman\'s',cat:'Lacteos',precio:78.53},
   {id:'queso_gouda',n:'Queso Gouda',cat:'Lacteos',precio:190.62},
@@ -2320,7 +2320,7 @@ async function initSB(){
     // v7: composición nueva de baguettes. Espera a que entre Andres para no marcar la versión sin subir los gramajes.
     if(_cloudFinVer<7&&S.activeUser==='Andres'){ applyCosteoV7(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=7; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('empaques'); }
     // v8: quesos, salsas 80 ml, Entrecôt sin echalote, papas (aceite y sal), cebolla $15/kg y precios nuevos (solo con Andres)
-    if(_cloudFinVer<8&&S.activeUser==='Andres'){ applyCosteoV8(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=8; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('salePrices'); saveCfgToDB('papasCfg',S.papasCfg); setPrecioManual('cebolla_raw',15,'Promedio confirmado por Andres (nov 2026)'); }
+    if(_cloudFinVer<8&&S.activeUser==='Andres'){ applyCosteoV8(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=8; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('salePrices'); saveCfgToDB('papasCfg',S.papasCfg); setPrecioManual('cebolla_raw',15,'Promedio confirmado por Andres (nov 2026)'); setPrecioManual('espaldilla',81,'Precio confirmado por Andres (nov 2026)'); }
     // Ventas — resiliente si la tabla no existe. Primero se reintentan las que no se pudieron subir.
     try{
       await subirVentasPend();
@@ -6000,7 +6000,7 @@ function applyCosteoV7(){
 }
 // v8 (nov 2026), datos de Andres: el gouda no se usa; solo el Vodka lleva queso (provolone 20 g); el Pulled Pork lleva
 // 15 g de parmesano; Dip, Entrecôt y Poivre sin queso. Entrecôt sin echalote frito. Salsa Au Poivre y salsa vodka: 80 ml.
-// Papas: aceite cada 10 kg y rub solo de sal (1 g por 100 g fritos). Cebolla $15/kg (precio manual, lo pone initSB).
+// Papas: aceite cada 10 kg y rub solo de sal (1 g por 100 g fritos). Cebolla $15/kg y espaldilla $81/kg (precios manuales, los pone initSB).
 // Precios: Rappi Entrecôt y Poivre $285; Vodka y Pulled Pork $260 en Rappi y Uber. Solo en la sesión de Andres.
 function applyCosteoV8(){
   const G=JSON.parse(JSON.stringify(S.bagGramajes||DEFAULT_BAG_GRAMAJES));
