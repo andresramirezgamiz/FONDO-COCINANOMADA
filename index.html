@@ -1319,23 +1319,26 @@ const DEFAULT_PRICES = {
 // ================================================================
 // RECIPES DATA
 // ================================================================
+// Rendimiento de la papa (650 g congeladas → 470 g fritas). Es el default de Configuración → Papas (congG / fritoG).
+const PAPAS_REND_DEF={congG:650,fritoG:470};
 function papasIng(ver){
-  const pg=ver==='pp'?200:100, f=pg/100;   // papas con pulled pork: 200 g de papa + 150 g de pulled pork
-  const a=[{k:'papas',n:'Papas prefritas congeladas',a:pg,u:'g'},{k:'sal',n:'Sal',a:f,u:'g'},{k:'pimienta',n:'Pimienta negra',a:f,u:'g'},{k:'perejil',n:'Perejil picado fino',a:f,u:'g'}];
+  const pg=ver==='pp'?200:100, f=pg/100;   // papas con pulled pork: 200 g de papa frita + 150 g de pulled pork
+  const cong=Math.round(pg*PAPAS_REND_DEF.congG/PAPAS_REND_DEF.fritoG);
+  const a=[{k:'papas',n:`Papas prefritas congeladas (dan ${pg} g fritas)`,a:cong,u:'g'},{k:'sal',n:'Sal (1 g por cada 100 g de papa frita)',a:f,u:'g'}];
   if(ver==='pp') a.push({k:'pulledpork',n:'Pulled pork (producto final)',a:150,u:'g'});
-  if(ver==='parm'||ver==='parmtrufa') a.push({k:'queso_parm',n:'Queso parmesano rallado',a:15,u:'g'});
+  if(ver==='parm'||ver==='parmtrufa') a.push({k:'queso_parm',n:'Queso parmesano rallado',a:15,u:'g'},{k:'perejil',n:'Perejil picado fino',a:f,u:'g'});
   if(ver==='trufa'||ver==='parmtrufa') a.push({k:'aceite_trufa_aroma',n:'Aceite con aroma a trufa',a:15,u:'ml'});
   return a;
 }
 function papasSteps(ver){
   const st=[
     {t:'Atemperar las papas',x:'Saca las {papas} de papas del congelador un momento antes de freír. Deben seguir firmes, pero ya con un poco de blandura al tacto.',timer:null,ck:'Firmes, sin llegar a estar descongeladas por completo.',tip:null},
-    {t:'Preparar el rub',x:'Mezcla en partes iguales: {sal} de sal, {pimienta} de pimienta y {perejil} de perejil finamente picado.',timer:null,ck:null,tip:null},
+    {t:'Preparar la sal',x:'Separa {sal} de sal (1 g por cada 100 g de papa frita).',timer:null,ck:null,tip:null},
     {t:'Freír',x:'Freidora a <strong>375 °F (190 °C)</strong> con el aceite entre el mínimo y el máximo de la freidora (unos 3.5 L). Fríe las papas en una sola fritura: ya vienen prefritas y cortadas.',timer:4.25,ck:'Doradas y crujientes por fuera.',tip:'Recuerda el ciclo de cambio de aceite que definiste en Configuración.'},
-    {t:'Escurrir y sazonar',x:'Escurre bien y pasa las papas a un bowl. Espolvorea el rub de inmediato, mientras están calientes.',timer:null,ck:null,tip:null},
+    {t:'Escurrir y sazonar',x:'Escurre bien y pasa las papas a un bowl. Espolvorea la sal de inmediato, mientras están calientes.',timer:null,ck:null,tip:null},
   ];
   if(ver==='pp') st.push({t:'Pulled pork encima',x:'Coloca {pulledpork} de pulled pork caliente sobre las papas.',timer:null,ck:null,tip:null});
-  if(ver==='parm'||ver==='parmtrufa') st.push({t:'Parmesano',x:'Espolvorea {queso_parm} de queso parmesano rallado sobre las papas calientes, junto con el rub.',timer:null,ck:null,tip:null});
+  if(ver==='parm'||ver==='parmtrufa') st.push({t:'Parmesano y perejil',x:'Espolvorea {queso_parm} de queso parmesano rallado y {perejil} de perejil picado fino sobre las papas calientes.',timer:null,ck:null,tip:null});
   if(ver==='trufa'||ver==='parmtrufa') st.push({t:'Aceite de trufa',x:'Rocía {aceite_trufa_aroma} de aceite con aroma a trufa sobre las papas calientes.',timer:null,ck:null,tip:null});
   st.push({t:'Servir',x:'Pasa las papas a su caja y entrégalas de inmediato: el crunch dura poco.',timer:null,ck:null,tip:null});
   return st;
@@ -1541,7 +1544,8 @@ caldo:{
   },
   pulledporkbase:{
     // Receta única de pulled pork (Recetario, costeo y papas con pulled pork). Cantidades por 1 kg de espaldilla.
-    name:'Pulled Pork (base)',cat:'base',tiempo:'2h',rendPct:.75,invId:'pulledpork',
+    // Rendimiento medido (nov 2026): 2 kg de espaldilla cruda → 1,800 g terminado, o sea 900 g por receta.
+    name:'Pulled Pork (base)',cat:'base',tiempo:'2h',rendPct:.75,rindeG:900,invId:'pulledpork',
     ing:[
       {k:'espaldilla',n:'Espaldilla de cerdo',a:1000,u:'g'},
       {k:'mostaza',n:'Mostaza',a:36,u:'g'},
@@ -1835,7 +1839,7 @@ const INSUMOS = [
   {id:'corn_flakes',n:'Corn Flakes',cat:'Abarrotes',precio:95},
   {id:'agua_mineral',n:'Agua Mineral',cat:'Abarrotes',precio:18},
   {id:'crema_batir',n:'Crema para Batir',cat:'Lacteos',precio:85},
-  {id:'cebolla_raw',n:'Cebolla Blanca',cat:'Vegetales',precio:8},
+  {id:'cebolla_raw',n:'Cebolla Blanca',cat:'Vegetales',precio:15},   // promedio confirmado por Andres (nov 2026)
   {id:'cebolla_morada',n:'Cebolla Morada',cat:'Vegetales',precio:11},
   {id:'echalote_raw',n:'Echalote',cat:'Vegetales',precio:128},
   {id:'ajo',n:'Ajo',cat:'Vegetales',precio:48},
@@ -2034,7 +2038,8 @@ const DEFAULT_BAG_ACTIVE={entrecot:true,poivre:true,vodka:true,dip:false,pulledp
 function bagIsActive(k){const a=S.bagActive||{}; return a[k]!==undefined?!!a[k]:!!DEFAULT_BAG_ACTIVE[k];}
 function activeBagKeys(){return BAG_ORDER.filter(bagIsActive);}
 // congG → fritoG: rendimiento de la papa (650 g congeladas dan 470 g fritas). Los gramos de porción son de papa FRITA.
-const DEFAULT_PAPAS_CFG={gramos:100,rubG:1,trufaMl:15,ppG:150,ppPapasG:200,litros:3.5,kgCambio:3.5,precioBase:55,precioPP:95,precioPP_rappi:115,precioPP_uber:115,precioPP_didi:115,precioTrufa:70,parmG:15,precioParm:65,precioParmTrufa:80,congG:650,fritoG:470};
+// salG: sal por cada 100 g de papa frita (el rub es solo sal). rubG: perejil, solo en las papas parmesano y perejil.
+const DEFAULT_PAPAS_CFG={gramos:100,rubG:1,salG:1,trufaMl:15,ppG:150,ppPapasG:200,litros:3.5,kgCambio:10,precioBase:55,precioPP:95,precioPP_rappi:115,precioPP_uber:115,precioPP_didi:115,precioTrufa:70,parmG:15,precioParm:65,precioParmTrufa:80,...PAPAS_REND_DEF};
 // Gramos de papa congelada que se necesitan para g gramos de papa frita
 function papasCongeladas(g){ const c=papasCfg(); return (c.congG>0&&c.fritoG>0)?g*c.congG/c.fritoG:g; }
 // Papas con pulled pork: precio por canal (si un canal no tiene precio propio, usa el de Directo)
@@ -2045,8 +2050,8 @@ const PAPAS_VER={papas:'clasica',papastrufa:'trufa',papasparm:'parm',papasparmtr
 // Insumos que consumen g gramos de papa (rub + aceite de la freidora + aceite de trufa)
 function papasNeeds(g,ver){
   const c=papasCfg(); const f=g/(c.gramos||100), gc=papasCongeladas(g);   // g = papa frita; gc = congelada que se gasta
-  const o={papas:gc,sal:c.rubG*f,pimienta:c.rubG*f,perejil:c.rubG*f,aceite_freir:(c.litros/(c.kgCambio||1))*gc};
-  if(ver==='parm'||ver==='parmtrufa') o.queso_parm=c.parmG*f;
+  const o={papas:gc,sal:(c.salG||0)*g/100,aceite_freir:(c.litros/(c.kgCambio||1))*gc};   // rub: solo sal
+  if(ver==='parm'||ver==='parmtrufa'){ o.queso_parm=c.parmG*f; o.perejil=c.rubG*f; }
   if(ver==='trufa'||ver==='parmtrufa') o.aceite_trufa_aroma=c.trufaMl*f;
   return o;
 }
@@ -2314,8 +2319,8 @@ async function initSB(){
     if(_cloudFinVer<6){ applyPriceBookV6(); saveS(); _cloudFinVer=6; pushPriceBook(); }
     // v7: composición nueva de baguettes. Espera a que entre Andres para no marcar la versión sin subir los gramajes.
     if(_cloudFinVer<7&&S.activeUser==='Andres'){ applyCosteoV7(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=7; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('empaques'); }
-    // v8: provolone 20 g en lugar de gouda y precios nuevos de Rappi/Uber (también solo con Andres)
-    if(_cloudFinVer<8&&S.activeUser==='Andres'){ applyCosteoV8(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=8; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('salePrices'); }
+    // v8: quesos, salsas 80 ml, Entrecôt sin echalote, papas (aceite y sal), cebolla $15/kg y precios nuevos (solo con Andres)
+    if(_cloudFinVer<8&&S.activeUser==='Andres'){ applyCosteoV8(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=8; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('salePrices'); saveCfgToDB('papasCfg',S.papasCfg); setPrecioManual('cebolla_raw',15,'Promedio confirmado por Andres (nov 2026)'); }
     // Ventas — resiliente si la tabla no existe. Primero se reintentan las que no se pudieron subir.
     try{
       await subirVentasPend();
@@ -2720,7 +2725,7 @@ function bagGramForInv(invId){
 function updateOutputs(){
   const rec=R[S.currentRec];const f=S.scaleFactor;
   const totalIn=rec.ing.reduce((s,i)=>(i.u==='g'||i.u==='ml')?s+i.a*f:s,0);
-  const rend=Math.round(totalIn*rec.rendPct);
+  const rend=Math.round(rec.rindeG>0?rec.rindeG*f:totalIn*rec.rendPct);   // rindeG: rendimiento medido
   const bg=bagGramForInv(rec.invId);
   const bags=(rec.cat==='proteina'&&bg>0)?Math.floor(rend/bg):'—';
   const bl=document.getElementById('outBagLbl'); if(bl) bl.textContent=bg>0?`Baguettes (~${Math.round(bg)}g c/u)`:'Baguettes';
@@ -3606,7 +3611,7 @@ function scaleByKg(){
   const rec = R[S.currentRec];
   // Calcular el rendimiento base (1x)
   const totalInput = rec.ing.reduce((s,i)=>(i.u==='g'||i.u==='ml')?s+i.a:s, 0);
-  const rendBase = totalInput * (rec.rendPct||1);
+  const rendBase = rec.rindeG>0 ? rec.rindeG : totalInput * (rec.rendPct||1);   // rindeG: rendimiento medido
   // Factor necesario para producir kg deseados
   const factor = kg / rendBase;
   S.scaleFactor = factor;
@@ -5941,7 +5946,6 @@ const DEFAULT_BAG_GRAMAJES = {
   entrecot:[
     {id:'vacio',n:'Vacío Sous Vide',g:90},
     {id:'mantequillaentrecot',n:'Mantequilla Café de París',g:40},
-    {id:'echalote',n:'Echalote Frito',g:30},
     {id:'papas_top',n:'Papas dentro de la baguette',g:80},
     {id:'papas_caja',n:'Papas incluidas',g:100},
     {id:'bolsa_papas',n:'Bolsa de papas',g:1},
@@ -5949,7 +5953,7 @@ const DEFAULT_BAG_GRAMAJES = {
   ],
   poivre:[
     {id:'vacio',n:'Vacío Sous Vide',g:90},
-    {id:'aupoivre',n:'Salsa Au Poivre',g:94},
+    {id:'aupoivre',n:'Salsa Au Poivre',g:80},
     {id:'cebolla_frita',n:'Cebolla Frita',g:30},
     {id:'arugula',n:'Arúgula',g:10},
     {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
@@ -5971,7 +5975,7 @@ const DEFAULT_BAG_GRAMAJES = {
   ],
   vodka:[
     {id:'pollo',n:'Pollo Empanizado',g:90},
-    {id:'salsavodka',n:'Salsa Vodka',g:150},
+    {id:'salsavodka',n:'Salsa Vodka',g:80},
     {id:'queso_provolone',n:'Queso Provolone',g:20},
     {id:'cebolla',n:'Cebolla Caramelizada',g:70},
     {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
@@ -5994,9 +5998,10 @@ function applyCosteoV7(){
   S.empaques=getEmpaques().map(e=>(e.id==='sticker_circular'||e.id==='sticker_alargado')?{...e,precio:0.40}:e);
   S.fin={...finCfg(),ver:7};
 }
-// v8 (nov 2026): el gouda no se usa. Solo el Vodka lleva queso (provolone 20 g); el Pulled Pork lleva 15 g de parmesano;
-// Dip, Entrecôt y Poivre van sin queso. Precios: Rappi Entrecôt y Poivre $285; Vodka y Pulled Pork $260 en Rappi y Uber.
-// Solo en la sesión de Andres.
+// v8 (nov 2026), datos de Andres: el gouda no se usa; solo el Vodka lleva queso (provolone 20 g); el Pulled Pork lleva
+// 15 g de parmesano; Dip, Entrecôt y Poivre sin queso. Entrecôt sin echalote frito. Salsa Au Poivre y salsa vodka: 80 ml.
+// Papas: aceite cada 10 kg y rub solo de sal (1 g por 100 g fritos). Cebolla $15/kg (precio manual, lo pone initSB).
+// Precios: Rappi Entrecôt y Poivre $285; Vodka y Pulled Pork $260 en Rappi y Uber. Solo en la sesión de Andres.
 function applyCosteoV8(){
   const G=JSON.parse(JSON.stringify(S.bagGramajes||DEFAULT_BAG_GRAMAJES));
   Object.keys(G).forEach(k=>{
@@ -6004,6 +6009,8 @@ function applyCosteoV8(){
     (G[k]||[]).forEach(c=>{
       if(c.id==='queso_gouda'||c.id==='queso_provolone'){ if(k==='vodka'&&!puesto){ out.push({id:'queso_provolone',n:'Queso Provolone',g:20}); puesto=true; } }
       else if(c.id==='queso_parm'&&k==='pulledpork') out.push({...c,g:15});
+      else if(c.id==='echalote'&&k==='entrecot') return;
+      else if((c.id==='aupoivre'&&k==='poivre')||(c.id==='salsavodka'&&k==='vodka')) out.push({...c,g:80});
       else out.push(c);
     });
     if(k==='vodka'&&!puesto){ const i=Math.max(0,out.findIndex(c=>c.id==='salsavodka')+1); out.splice(i,0,{id:'queso_provolone',n:'Queso Provolone',g:20}); }
@@ -6015,6 +6022,7 @@ function applyCosteoV8(){
   fija('entrecot','rappi',285); fija('poivre','rappi',285);
   ['vodka','pulledpork'].forEach(b=>{ fija(b,'rappi',260); fija(b,'uber',260); });
   S.salePrices=sp;
+  S.papasCfg={...(S.papasCfg||{}),kgCambio:10,salG:1};
   S.fin={...finCfg(),ver:8};
 }
 
@@ -6268,7 +6276,8 @@ const PAPAS_FIELDS=[
   ['gramos','Gramos de papa FRITA por porción','g'],
   ['congG','Rendimiento: gramos de papa congelada…','g'],
   ['fritoG','…que dan estos gramos fritos','g'],
-  ['rubG','Rub: gramos de cada uno (sal, pimienta, perejil)','g'],
+  ['salG','Sal por cada 100 g de papa frita','g'],
+  ['rubG','Perejil por porción (solo papas parmesano y perejil)','g'],
   ['ppPapasG','Papas Fondo: gramos de papa','g'],
   ['ppG','Papas Fondo: gramos de pulled pork','g'],
   ['parmG','Parmesano y perejil: gramos de parmesano','g'],
@@ -6585,7 +6594,7 @@ function papasIncluidasCost(){ return papasPortionCost('clasica'); }
 // Papas Fondo (con pulled pork) por canal: utilidad neta = precio − comisión del canal − costo (incluye su caja)
 function papasPPCanales(){ const costo=papasPortionCost('pp')+empaqueCostPapas(); return getPlatforms().map(pl=>{ const precio=papasPrecioPP(pl.k), cm=precio*getCommission(pl.k), util=precio-cm-costo; return {n:pl.n,precio,cm,costo,util,mg:precio>0?util/precio*100:0}; }); }
 function papasSummaryHtml(){
-  const c=papasCfg(); const oilMl=(c.litros/(c.kgCambio||1))*c.gramos;
+  const c=papasCfg(); const oilMl=(c.litros/(c.kgCambio||1))*papasCongeladas(c.gramos);
   const row=(n,ver)=>{ const x=papasExtraFin(ver); return `<div style="padding:8px 0;border-top:1px solid var(--border)"><div style="display:flex;justify-content:space-between"><span style="color:var(--crema);font-weight:600">${n}</span><b style="color:${marginColor(x.mg)}">${fmtM(x.util,2)}</b></div><div style="font-size:12px;color:var(--text3)">precio ${fmtM(x.precio,0)} · costo ${fmtM(x.costo,2)} (incluye caja propia) · margen ${x.mg.toFixed(0)}%</div></div>`; };
   return `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r10);padding:12px;font-size:13px;line-height:1.55;color:var(--text2)">
     <div style="font-weight:700;color:var(--crema);margin-bottom:4px">Papas incluidas · ${fmtQ(c.gramos,'g')} por baguette</div>
