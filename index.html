@@ -2314,6 +2314,8 @@ async function initSB(){
     if(_cloudFinVer<6){ applyPriceBookV6(); saveS(); _cloudFinVer=6; pushPriceBook(); }
     // v7: composición nueva de baguettes. Espera a que entre Andres para no marcar la versión sin subir los gramajes.
     if(_cloudFinVer<7&&S.activeUser==='Andres'){ applyCosteoV7(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=7; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('empaques'); }
+    // v8: provolone 20 g en lugar de gouda y precios nuevos de Rappi/Uber (también solo con Andres)
+    if(_cloudFinVer<8&&S.activeUser==='Andres'){ applyCosteoV8(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=8; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('salePrices'); }
     // Ventas — resiliente si la tabla no existe. Primero se reintentan las que no se pudieron subir.
     try{
       await subirVentasPend();
@@ -5890,7 +5892,7 @@ const DEFAULT_BAG_GRAMAJES = {
     {id:'caldo',n:'Caldo French Dip',g:250},
     {id:'cebolla',n:'Cebolla Caramelizada',g:70},
     {id:'mayodip',n:'Mayo French Dip',g:35},
-    {id:'queso_gouda',n:'Queso Gouda',g:50},
+    {id:'queso_provolone',n:'Queso Provolone',g:20},
     {id:'papas_caja',n:'Papas incluidas (en la caja)',g:100},
     {id:'bolsa_papas',n:'Bolsa de papas',g:1},
     {id:'pan',n:'Pan Baguette',g:1},
@@ -5901,7 +5903,7 @@ const DEFAULT_BAG_GRAMAJES = {
   entrecot:[
     {id:'vacio',n:'Vacío Sous Vide',g:90},
     {id:'mantequillaentrecot',n:'Mantequilla Café de París',g:40},
-    {id:'queso_gouda',n:'Queso Gouda',g:50},
+    {id:'queso_provolone',n:'Queso Provolone',g:20},
     {id:'echalote',n:'Echalote Frito',g:30},
     {id:'papas_top',n:'Papas dentro de la baguette',g:80},
     {id:'papas_caja',n:'Papas incluidas',g:100},
@@ -5911,7 +5913,7 @@ const DEFAULT_BAG_GRAMAJES = {
   poivre:[
     {id:'vacio',n:'Vacío Sous Vide',g:90},
     {id:'aupoivre',n:'Salsa Au Poivre',g:94},
-    {id:'queso_gouda',n:'Queso Gouda',g:50},
+    {id:'queso_provolone',n:'Queso Provolone',g:20},
     {id:'cebolla_frita',n:'Cebolla Frita',g:30},
     {id:'arugula',n:'Arúgula',g:10},
     {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
@@ -5934,7 +5936,7 @@ const DEFAULT_BAG_GRAMAJES = {
   vodka:[
     {id:'pollo',n:'Pollo Empanizado',g:90},
     {id:'salsavodka',n:'Salsa Vodka',g:150},
-    {id:'queso_provolone',n:'Queso Provolone',g:50},
+    {id:'queso_provolone',n:'Queso Provolone',g:20},
     {id:'cebolla',n:'Cebolla Caramelizada',g:70},
     {id:'mayoajneg',n:'Mayo Ajo Negro',g:40},
     {id:'papas_caja',n:'Papas incluidas',g:100},
@@ -5955,6 +5957,26 @@ function applyCosteoV7(){
   S.bagGramajes=G;
   S.empaques=getEmpaques().map(e=>(e.id==='sticker_circular'||e.id==='sticker_alargado')?{...e,precio:0.40}:e);
   S.fin={...finCfg(),ver:7};
+}
+// v8 (nov 2026): el gouda no se usa; el queso de todas las baguettes es provolone 20 g (el parmesano del Pulled Pork
+// sigue). Precios: Rappi Entrecôt y Poivre $285; Vodka y Pulled Pork $260 en Rappi y Uber. Solo en la sesión de Andres.
+function applyCosteoV8(){
+  const G=JSON.parse(JSON.stringify(S.bagGramajes||DEFAULT_BAG_GRAMAJES));
+  Object.keys(G).forEach(k=>{
+    const out=[]; let puesto=false;
+    (G[k]||[]).forEach(c=>{
+      if(c.id==='queso_gouda'||c.id==='queso_provolone'){ if(!puesto){ out.push({id:'queso_provolone',n:'Queso Provolone',g:20}); puesto=true; } }
+      else out.push(c);
+    });
+    G[k]=out;
+  });
+  S.bagGramajes=G;
+  const sp=JSON.parse(JSON.stringify(S.salePrices||{}));
+  const fija=(b,pl,v)=>{ sp[b]={...(sp[b]||{}),[pl]:v}; };
+  fija('entrecot','rappi',285); fija('poivre','rappi',285);
+  ['vodka','pulledpork'].forEach(b=>{ fija(b,'rappi',260); fija(b,'uber',260); });
+  S.salePrices=sp;
+  S.fin={...finCfg(),ver:8};
 }
 
 const BAG_NAMES = {dip:'DIP',entrecot:'ENTRECÔT',poivre:'POIVRE',pulledpork:'PULLED PORK',vodka:'VODKA'};
