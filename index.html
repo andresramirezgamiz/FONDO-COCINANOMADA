@@ -614,6 +614,55 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
   .modo-btn .ic{width:17px;height:17px}
 }
 
+/* ===== FONDO v6 · una mano, con guantes: áreas de toque grandes y respuesta al tocar ===== */
+:focus-visible{outline:2px solid var(--dorado-light);outline-offset:2px}
+.btn{min-height:52px;font-size:15px;border-radius:14px;-webkit-tap-highlight-color:transparent;touch-action:manipulation;position:relative;overflow:hidden}
+.btn-sm{min-height:44px;padding:10px 15px;font-size:13.5px;border-radius:12px}
+.btn-rojo{box-shadow:0 6px 18px -10px rgba(154,18,18,.9),inset 0 1px 0 rgba(255,255,255,.08)}
+.btn-verde{box-shadow:0 6px 18px -10px rgba(63,152,115,.8),inset 0 1px 0 rgba(255,255,255,.1)}
+.btn-dorado{box-shadow:0 6px 18px -10px rgba(201,162,75,.8),inset 0 1px 0 rgba(255,255,255,.18)}
+.btn:disabled{opacity:.45;box-shadow:none}
+/* brillo que recorre el botón al soltarlo: confirma el toque aunque el dedo lo tape */
+.btn::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at center,rgba(255,255,255,.22),rgba(255,255,255,0) 62%);opacity:0;transform:scale(.4);transition:opacity .45s ease-out,transform .45s ease-out;pointer-events:none}
+.btn:active::after{opacity:1;transform:scale(1.6);transition:none}
+.pill,.fch{min-height:44px;padding-left:16px;padding-right:16px;-webkit-tap-highlight-color:transparent;transition:background .18s var(--ease),color .18s,border-color .18s,transform .12s ease-out}
+.seg button{min-height:40px;padding:8px 15px;font-size:13px;transition:background .18s var(--ease),color .18s}
+.modal-close,.guide-close{width:44px;height:44px;font-size:17px;transition:transform .12s ease-out,background .15s,color .15s}
+.modal-close:active,.guide-close:active{transform:scale(.9) rotate(90deg)}
+.t-btn{min-height:50px;padding:12px 22px;font-size:15px;transition:transform .12s ease-out,background .15s}
+.rr{min-height:56px}
+.rr:active{background:var(--surface2);transform:scale(.985)}
+.rr .rr-go{transition:transform .2s var(--ease)}
+.rr:active .rr-go,.rr.sel .rr-go{transform:translateX(4px)}
+.sw{width:54px;height:32px}
+.sw span::before{width:24px;height:24px;transition:transform .22s var(--ease)}
+.sw input:checked+span::before{transform:translateX(22px)}
+input[type=checkbox]{transition:transform .15s var(--ease)}
+input[type=checkbox]:checked{animation:chkPop .28s var(--ease)}
+@keyframes chkPop{0%{transform:scale(.8)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.guide-footer .btn{min-height:60px;font-size:16.5px}
+/* Entradas: hoja que sube con rebote suave, filas y tarjetas escalonadas (fuera del tablero) */
+.overlay.on{animation:fadeIn .22s ease}
+.modal{animation:modalUp .36s cubic-bezier(.2,.9,.25,1.08)}
+@keyframes modalUp{from{transform:translateY(46px);opacity:0}to{transform:none;opacity:1}}
+.page.on{animation:pageIn .3s var(--ease)}
+.page.on:not(#page-dash) .card{animation:mIn .4s var(--ease) both}
+.page.on:not(#page-dash) .card:nth-child(2){animation-delay:50ms}
+.page.on:not(#page-dash) .card:nth-child(3){animation-delay:100ms}
+.page.on:not(#page-dash) .card:nth-child(n+4){animation-delay:150ms}
+.rr{animation:rowIn .3s var(--ease) both}
+.rr:nth-child(2){animation-delay:25ms}.rr:nth-child(3){animation-delay:50ms}.rr:nth-child(4){animation-delay:75ms}.rr:nth-child(5){animation-delay:100ms}.rr:nth-child(n+6){animation-delay:125ms}
+@keyframes rowIn{from{opacity:0;transform:translateX(-10px)}to{opacity:1;transform:none}}
+.sq{transition:background .2s}
+.checkpoint-card,.timer-card{animation:mIn .4s var(--ease) both;animation-delay:.08s}
+@media(max-width:919px){
+  .bn{min-height:56px}
+  .bn.on .ic{animation:navPop .32s var(--ease)}
+  .guide-body{font-size:17px}
+}
+@keyframes navPop{0%{transform:scale(.82)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.rr,.page.on .card,.checkpoint-card,.timer-card,.bn.on .ic{animation:none!important}.btn::after{display:none}}
+
 </style>
 </head>
 <body>
@@ -1289,8 +1338,8 @@ button,.bn,.fch,.chip,.sheet-item,.tab,.modo-btn,.hs,.sync-btn,.alert-pill{touch
   </div>
   <div class="guide-footer">
     <div class="guide-footer-inner">
-      <button class="btn btn-ghost" id="gPrevBtn" onclick="goPrev()" style="flex:0.6;margin-top:0">← Anterior</button>
-      <button class="btn btn-rojo" id="gNextBtn" onclick="goNext()" style="margin-top:0">Siguiente →</button>
+      <button class="btn btn-ghost" id="gPrevBtn" onclick="goPrev()" style="flex:0 0 36%;width:auto;margin-top:0">← Anterior</button>
+      <button class="btn btn-rojo" id="gNextBtn" onclick="goNext()" style="flex:1;width:auto;margin-top:0">Siguiente →</button>
     </div>
   </div>
 </div>
@@ -1322,10 +1371,10 @@ const DEFAULT_PRICES = {
 // Rendimiento de la papa (650 g congeladas → 470 g fritas). Es el default de Configuración → Papas (congG / fritoG).
 const PAPAS_REND_DEF={congG:650,fritoG:470};
 function papasIng(ver){
-  const pg=ver==='pp'?200:100, f=pg/100;   // papas con pulled pork: 200 g de papa frita + 150 g de pulled pork
+  const pg=ver==='pp'?200:100, f=pg/100;   // papas con pulled pork: 200 g de papa frita + 120 g de pulled pork
   const cong=Math.round(pg*PAPAS_REND_DEF.congG/PAPAS_REND_DEF.fritoG);
   const a=[{k:'papas',n:`Papas prefritas congeladas (dan ${pg} g fritas)`,a:cong,u:'g'},{k:'sal',n:'Sal (1 g por cada 100 g de papa frita)',a:f,u:'g'}];
-  if(ver==='pp') a.push({k:'pulledpork',n:'Pulled pork (producto final)',a:150,u:'g'});
+  if(ver==='pp') a.push({k:'pulledpork',n:'Pulled pork (producto final)',a:120,u:'g'});
   if(ver==='parm'||ver==='parmtrufa') a.push({k:'queso_parm',n:'Queso parmesano rallado',a:15,u:'g'},{k:'perejil',n:'Perejil picado fino',a:f,u:'g'});
   if(ver==='trufa'||ver==='parmtrufa') a.push({k:'aceite_trufa_aroma',n:'Aceite con aroma a trufa',a:15,u:'ml'});
   return a;
@@ -1460,7 +1509,7 @@ aupoivre:{
       {k:'vino_blanco',n:'Vino blanco',a:587,u:'ml'},
       {k:'caldo_pollo',n:'Caldo de pollo',a:957,u:'ml'},
       {k:'soya',n:'Soya Kikkoman',a:93,u:'ml'},
-      {k:'crema_lyncott',n:'Crema Lyncott',a:834,u:'ml'},
+      {k:'crema_lyncott',n:'Crema Alpura',a:834,u:'ml'},
       {k:'pimienta',n:'Pimienta negra',a:12,u:'g'},
       {k:'sal',n:'Sal',a:9,u:'g'},
     ],
@@ -1470,7 +1519,7 @@ aupoivre:{
       {t:'Cocinar hasta translúcidos',x:'Cocinar a fuego bajo sin agregar color hasta que echalotes estén completamente suaves y translúcidos.',timer:7,ck:'Los echalotes deben verse casi transparentes, suaves al presionar con la cuchara. Sin rastro de blanco crudo ni color dorado.',tip:null},
       {t:'Reducir el vino',x:'Agregar <span class="sq">{vino_blanco} de vino blanco</span> y reducir a fuego medio hasta que nappé.',timer:10,ck:'Nappé: moja una cuchara, voltéala, pasa el dedo por detrás — la línea debe quedar perfectamente limpia sin cerrarse.',tip:'Si queda exceso de grasa visible flotando, retira ~80-100g con una cuchara grande antes del siguiente paso.'},
       {t:'Agregar soya y caldo',x:'Agregar <span class="sq">{soya} de soya Kikkoman</span> y <span class="sq">{caldo_pollo} de caldo de pollo</span>. Subir a fuego medio y hervir.',timer:10,ck:null,tip:'La soya aporta profundidad de sabor (umami) y color. Es parte fundamental del perfil de la salsa.'},
-      {t:'Terminar con crema',x:'Bajar fuego a mínimo. Agregar poco a poco los <span class="sq">{crema_lyncott} de crema Lyncott</span> incorporando mientras revuelves. Agregar <span class="sq">{sal} de sal</span> y <span class="sq">{pimienta} de pimienta</span>.',timer:null,ck:null,tip:'Agrega la crema POCO A POCO, nunca de golpe. Temperatura alta + crema de golpe = salsa cortada.'},
+      {t:'Terminar con crema',x:'Bajar fuego a mínimo. Agregar poco a poco los <span class="sq">{crema_lyncott} de crema Alpura</span> incorporando mientras revuelves. Agregar <span class="sq">{sal} de sal</span> y <span class="sq">{pimienta} de pimienta</span>.',timer:null,ck:null,tip:'Agrega la crema POCO A POCO, nunca de golpe. Temperatura alta + crema de golpe = salsa cortada.'},
       {t:'Reducción final y nappé',x:'Cocinar a fuego mínimo, revolviendo ocasionalmente, hasta conseguir nappé perfecto.',timer:8,ck:'Color beige cremoso con puntos negros de pimienta visibles. La línea del dedo en la cuchara debe quedar completamente limpia. La salsa espesa más al enfriar.',tip:'Esta salsa espesa bastante al enfriar en refrigeración. No la sobrereduzcas o quedará muy densa para servir.'},
     ]
   },
@@ -1483,7 +1532,7 @@ aupoivre:{
       {k:'jitomate_cherry',n:'Jitomate cherry',a:1350,u:'g'},
       {k:'pure_tomate',n:'Puré de tomate Del Fuerte',a:540,u:'ml'},
       {k:'vodka',n:'Vodka (para flamear)',a:146,u:'ml'},
-      {k:'crema_lyncott',n:'Crema Lyncott',a:315,u:'ml'},
+      {k:'crema_lyncott',n:'Crema Alpura',a:315,u:'ml'},
       {k:'albahaca',n:'Albahaca fresca',a:10,u:'hojas'},
       {k:'sal',n:'Sal',a:13,u:'g'},
       {k:'pimienta',n:'Pimienta negra',a:2,u:'g'},
@@ -1495,7 +1544,7 @@ aupoivre:{
       {t:'Destapar y reducir',x:'<strong>Destapar</strong> y seguir cocinando a fuego medio, moviendo constantemente, hasta que todo el líquido se evapore.',timer:15,ck:'La mezcla debe verse espesa y empezar a pegarse al fondo del sartén. Sin líquido suelto.',tip:'No agregues sal aún — la sal extrae agua de los tomates y alarga el proceso. Agrégala al final.'},
       {t:'Integrar puré de tomate',x:'Agregar <span class="sq">{pure_tomate} de puré de tomate Del Fuerte</span>. Cocinar revolviendo.',timer:4,ck:'La mezcla debe verse muy espesa, homogénea, casi como una pasta. Sin exceso de líquido.',tip:null},
       {t:'⚠️ FLAMEAR CON VODKA',x:'<strong>APAGAR la campana extractora antes.</strong> Agregar <span class="sq">{vodka} de vodka</span> directamente al sartén. Inclinar hacia la llama del fogón o usar encendedor largo para flamear.',timer:null,ck:'La llama azul dura 15-20 segundos y se apaga sola. Si no tienes fogón de gas: cocinar el vodka 2 minutos sin flamear.',tip:'⚠️ Seguridad: apaga la campana, ten a la mano una tapa para apagar la llama si es necesario. La llama es normal y se apaga sola.'},
-      {t:'Terminar con crema',x:'Bajar fuego a mínimo. Agregar los <span class="sq">{crema_lyncott} de crema Lyncott</span> revolviendo. Agregar <span class="sq">{sal} de sal</span> y <span class="sq">{pimienta} de pimienta</span>.',timer:null,ck:null,tip:null},
+      {t:'Terminar con crema',x:'Bajar fuego a mínimo. Agregar los <span class="sq">{crema_lyncott} de crema Alpura</span> revolviendo. Agregar <span class="sq">{sal} de sal</span> y <span class="sq">{pimienta} de pimienta</span>.',timer:null,ck:null,tip:null},
       {t:'Albahaca y reposo',x:'Agregar 10 hojas de albahaca fresca, revolver y APAGAR el fuego inmediatamente. Tapar y dejar reposar 5 minutos antes de usar o refrigerar.',timer:5,ck:'Color rojo-naranja cremoso brillante. Sabor: tomate concentrado + crema + ligero ahumado del flameo.',tip:'La albahaca va AL FINAL fuera del fuego. El calor residual la cocina perfecto. Con fuego directo se oxida y pierde color.'},
     ]
   },
@@ -1521,7 +1570,7 @@ caldo:{
       {t:'Agregar hierbas',x:'Agregar <span class="sq">{tomillo} tomillo</span>, <span class="sq">{laurel} laurel</span> y <span class="sq">{pimienta} pimienta entera</span>. Revolver 2 minutos.',timer:2,ck:null,tip:null},
       {t:'Reducir el vino',x:'Agregar <span class="sq">{vino_blanco} de vino blanco</span> y reducir hasta que nappé (~5 minutos).',timer:5,ck:null,tip:null},
       {t:'Agregar caldo y reducir',x:'Agregar los <span class="sq">{caldo_pollo} de caldo de pollo</span>. Reducir 1 hora 30 minutos a fuego bajo constante.',timer:90,ck:null,tip:'No subas el fuego para acelerar — la reducción lenta extrae los azúcares naturales de las verduras.'},
-      {t:'Colar y enfriar',x:'Agregar <span class="sq">{sal} de sal</span>, colar con chino presionando para extraer todo el líquido. Deben quedar ~1,000 ml.',timer:null,ck:'Prueba de labio: los labios deben sentirse ligeramente pegajosos por la gelatina natural. Color ámbar dorado limpio y brillante.',tip:'Presionar las verduras coladas con el reverso de una cuchara para extraer hasta la última gota de caldo.'},
+      {t:'Colar y enfriar',x:'Agregar <span class="sq">{sal} de sal</span>, colar con chino presionando para extraer todo el líquido. Deben quedar ~{rinde}.',timer:null,ck:'Prueba de labio: los labios deben sentirse ligeramente pegajosos por la gelatina natural. Color ámbar dorado limpio y brillante.',tip:'Presionar las verduras coladas con el reverso de una cuchara para extraer hasta la última gota de caldo.'},
     ]
   },
   cebolla:{
@@ -1535,7 +1584,7 @@ caldo:{
     ],
     steps:[
       {t:'Cortar la cebolla',x:'Cortar los <span class="sq">{cebolla} de cebolla blanca</span> en pluma fina (julianas delgadas). Usar mandolina para uniformidad.',timer:null,ck:null,tip:'Pluma fina = caramelización más uniforme y textura sedosa final. Tiras gruesas quedan con textura.'},
-      {t:'Calentar aceite',x:'Calentar los <span class="sq">{aceite_oliva} de aceite</span> en cazuela grande a fuego alto por 1-2 minutos. Cuando empiece a humear, agregar cebolla inmediatamente.',timer:2,ck:null,tip:'El golpe de calor inicial ayuda a que la cebolla suelte su agua rápidamente. Después bajaremos el fuego.'},
+      {t:'Calentar aceite',x:'Calentar los <span class="sq">{aceite_freir} de aceite</span> en cazuela grande a fuego alto por 1-2 minutos. Cuando empiece a humear, agregar cebolla inmediatamente.',timer:2,ck:null,tip:'El golpe de calor inicial ayuda a que la cebolla suelte su agua rápidamente. Después bajaremos el fuego.'},
       {t:'Cocinar con vapor',x:'Agregar <span class="sq">{sal} de sal</span> a la cebolla. TAPAR para que se cocine en su propio vapor.',timer:15,ck:'Cuando el líquido de la cebolla haya evaporado completamente, destapar. Esto toma 15-20 minutos.',tip:'La sal acelera la liberación de agua de la cebolla. Tapar atrapa el vapor para cocción homogénea.'},
       {t:'Dorar profundamente',x:'Destapar y mover constantemente a fuego medio-alto para conseguir un dorado profundo y uniforme. Raspar el fondo constantemente.',timer:35,ck:'Color ámbar oscuro uniforme como miel de maple. Es normal que el fondo de la cazuela se oscurezca — eso da sabor.',tip:'Si se empieza a quemar, bajar fuego y agregar 1-2 cucharadas de agua para desglasar el fondo.'},
       {t:'Desglasar con balsámico',x:'Cuando las cebollas estén bien doradas, agregar <span class="sq">{vinagre_bals} de vinagre balsámico</span>. Revolver vigorosamente para desglasar el fondo.',timer:null,ck:null,tip:'El balsámico levanta todos los azúcares quemados del fondo (fond) que son concentrado de sabor.'},
@@ -1606,42 +1655,46 @@ caldo:{
     ]
   },
   colmorada:{
-    // Col lombarda con manzana (Apfelrotkohl). Rinde ~1.9 kg (medir real). 5-7 días en refri (por validar); se puede congelar al vacío.
-    // Clavo y canela no están en el catálogo: no se costean (costo insignificante).
-    name:'Col Lombarda con Manzana',cat:'base',tiempo:'2h',rendPct:1,rindeG:1900,invId:'colmorada',
-    todo:'Rinde 1.9 kg estimado: medir real. Precios por capturar: col lombarda, manzana verde, aceite de canola, vino tinto y jugo de manzana. Vida útil 5-7 días por validar.',
+    // Col lombarda con manzana (Apfelrotkohl). Base de producción: 3,800 g de col (la receta original de 1,925 g × 1.974).
+    // Rinde ~3.7 kg (≈105 porciones de 35 g): medir real. 5-7 días en refri (por validar); se puede congelar al vacío.
+    // Clavo y canela no están en el catálogo de insumos: escalan en la receta pero no se costean (centavos por lote).
+    name:'Col Lombarda con Manzana',cat:'base',tiempo:'2h 45min',rendPct:1,rindeG:3700,invId:'colmorada',
+    todo:'Rinde 3.7 kg estimado: medir real. Precios por capturar: col lombarda, manzana verde, aceite de canola, vino tinto y jugo de manzana. Vida útil 5-7 días por validar.',
     ing:[
-      {k:'col_lombarda',n:'Col lombarda',a:1925,u:'g'},
-      {k:'manzana_verde',n:'Manzana verde',a:385,u:'g'},
-      {k:'cebolla',n:'Cebolla',a:231,u:'g'},
-      {k:'mantequilla',n:'Mantequilla',a:25,u:'g'},
-      {k:'aceite_canola',n:'Aceite de canola',a:33,u:'ml'},
-      {k:'vinagre_manzana',n:'Vinagre de manzana',a:116,u:'ml'},
-      {k:'vino_tinto',n:'Vino tinto',a:116,u:'ml'},
-      {k:'jugo_manzana',n:'Jugo de manzana',a:289,u:'ml'},
-      {k:'azucar_morena',n:'Azúcar morena',a:96,u:'g'},
-      {k:'sal',n:'Sal',a:15,u:'g'},
-      {k:'laurel',n:'Laurel (4 hojas)',a:0.8,u:'g'},
+      {k:'col_lombarda',n:'Col lombarda',a:3800,u:'g'},
+      {k:'manzana_verde',n:'Manzana verde',a:760,u:'g'},
+      {k:'cebolla',n:'Cebolla',a:456,u:'g'},
+      {k:'mantequilla',n:'Mantequilla',a:49,u:'g'},
+      {k:'aceite_canola',n:'Aceite de canola',a:65,u:'ml'},
+      {k:'vinagre_manzana',n:'Vinagre de manzana',a:229,u:'ml'},
+      {k:'vino_tinto',n:'Vino tinto',a:229,u:'ml'},
+      {k:'jugo_manzana',n:'Jugo de manzana',a:571,u:'ml'},
+      {k:'azucar_morena',n:'Azúcar morena',a:190,u:'g'},
+      {k:'sal',n:'Sal',a:30,u:'g'},
+      {k:'clavo',n:'Clavo de olor',a:8,u:'pzas'},
+      {k:'laurel',n:'Laurel',a:8,u:'hojas'},
+      {k:'canela',n:'Canela molida',a:1,u:'g'},
     ],
     steps:[
-      {t:'Sudar la cebolla',x:'Sudar <span class="sq">{cebolla} de cebolla</span> en <span class="sq">{mantequilla} de mantequilla</span> + <span class="sq">{aceite_canola} de aceite de canola</span>.',timer:6,ck:'Cebolla suave y translúcida, sin color.',tip:null},
-      {t:'Marchitar la col',x:'Agregar <span class="sq">{col_lombarda} de col lombarda</span> con <span class="sq">{sal} de sal</span> y marchitar.',timer:10,ck:'La col bajó de volumen y soltó jugo.',tip:'8 a 10 minutos.'},
-      {t:'Agregar el resto',x:'Agregar <span class="sq">{manzana_verde} de manzana verde</span>, <span class="sq">{vinagre_manzana} de vinagre de manzana</span>, <span class="sq">{vino_tinto} de vino tinto</span>, <span class="sq">{jugo_manzana} de jugo de manzana</span>, <span class="sq">{azucar_morena} de azúcar morena</span>, 4 clavos, 4 hojas de laurel y una pizca generosa de canela.',timer:null,ck:null,tip:null},
-      {t:'Cocción tapada',x:'Tapar y cocinar a fuego bajo 75 a 90 minutos.',timer:80,ck:'La col está suave.',tip:null},
-      {t:'Reducir',x:'Destapar y reducir 15 a 20 minutos hasta que brille y casi no tenga líquido. Ajustar acidez y dulce.',timer:18,ck:'Brillante, casi sin líquido.',tip:null},
-      {t:'Enfriar y guardar',x:'Enfriar en baño maría inverso. Pesar lo que rindió. Refrigerar (5-7 días, por validar) o congelar al vacío.',timer:null,ck:null,tip:'Anota los gramos reales: hoy el costeo supone 1.9 kg.'},
+      {t:'Mise en place',x:'Cortar <span class="sq">{col_lombarda} de col lombarda</span> en juliana fina, sin el corazón. Pelar y rallar <span class="sq">{manzana_verde} de manzana verde</span>. Cortar <span class="sq">{cebolla} de cebolla</span> en pluma. Pesar y dejar a la mano todo lo demás.',timer:null,ck:'Todo cortado y pesado antes de prender el fuego.',tip:'A partir de la base (3.8 kg de col) usa olla de 20 L: la col cruda abulta mucho antes de marchitarse.'},
+      {t:'Sudar la cebolla',x:'Sudar la cebolla en <span class="sq">{mantequilla} de mantequilla</span> + <span class="sq">{aceite_canola} de aceite de canola</span> a fuego medio-bajo.',timer:8,ck:'Cebolla suave y translúcida, sin color.',tip:null},
+      {t:'Marchitar la col',x:'Agregar la col con <span class="sq">{sal*0.87} de sal</span> (el total es <span class="sq">{sal}</span>; el resto se ajusta al final). Mover hasta que marchite.',timer:14,ck:'La col bajó de volumen y soltó jugo.',tip:'12 a 15 minutos. Agrégala en dos o tres tandas si no cabe de golpe.'},
+      {t:'Agregar el resto',x:'Agregar la manzana, <span class="sq">{vinagre_manzana} de vinagre de manzana</span>, <span class="sq">{vino_tinto} de vino tinto</span>, <span class="sq">{jugo_manzana} de jugo de manzana</span>, <span class="sq">{azucar_morena} de azúcar morena</span>, <span class="sq">{clavo} de clavo</span>, <span class="sq">{laurel} de laurel</span> y <span class="sq">{canela} de canela</span>. Mezclar bien.',timer:null,ck:null,tip:'Cuenta los clavos y las hojas de laurel: al final hay que sacarlos todos.'},
+      {t:'Cocción tapada',x:'Tapar y cocinar a fuego bajo 90 a 100 minutos. Mover cada 20 minutos para que no se pegue.',timer:95,ck:'La col está suave pero todavía con algo de mordida.',tip:null},
+      {t:'Reducir',x:'Destapar y reducir 25 a 30 minutos hasta que brille y casi no tenga líquido. Probar y ajustar sal, acidez y dulce.',timer:28,ck:'Brillante, casi sin líquido en el fondo.',tip:'Aquí entra la sal que guardaste, solo si hace falta.'},
+      {t:'Enfriar, pesar y guardar',x:'Sacar clavos y laurel. Enfriar en baño maría inverso. Pesar lo que rindió: deben salir ~{rinde}. Refrigerar (5-7 días, por validar) o congelar al vacío.',timer:null,ck:null,tip:'Anota los gramos reales al terminar: el costeo supone ese rendimiento hasta que lo midas.'},
     ]
   },
   mayoajneg:{
     name:'Mayo Ajo Negro',cat:'mayo',tiempo:'10 min',rendPct:1.0,invId:'mayoajneg',
     ing:[
-      {k:'mayonesa',n:"Mayonesa Hellman's",a:945,u:'g'},
+      {k:'mayonesa',n:"Mayonesa Member's Mark",a:945,u:'g'},
       {k:'ajo_negro',n:'Ajo negro (pelado)',a:30,u:'g'},
       {k:'vinagre_arroz',n:'Vinagre de arroz',a:20,u:'ml'},
       {k:'sal',n:'Sal',a:5,u:'g'},
     ],
     steps:[
-      {t:'Base de licuado',x:'Poner 1/4 de los <span class="sq">{mayonesa} de mayonesa</span> (~235g) en bowl alto y estrecho. Agregar los <span class="sq">{ajo_negro} de ajo negro pelado</span> + <span class="sq">{vinagre_arroz} de vinagre de arroz</span>.',timer:null,ck:null,tip:'El ajo negro se pega mucho a su cáscara — despégalo con paciencia. Es normal que esté muy blando y pegajoso.'},
+      {t:'Base de licuado',x:'Poner 1/4 de los <span class="sq">{mayonesa} de mayonesa</span> (~{mayonesa*0.25}) en bowl alto y estrecho. Agregar los <span class="sq">{ajo_negro} de ajo negro pelado</span> + <span class="sq">{vinagre_arroz} de vinagre de arroz</span>.',timer:null,ck:null,tip:'El ajo negro se pega mucho a su cáscara — despégalo con paciencia. Es normal que esté muy blando y pegajoso.'},
       {t:'Licuar el ajo negro',x:'Licuar con brazo de inmersión hasta que el ajo negro quede completamente deshecho y sin grumos.',timer:null,ck:'La mezcla debe verse de color beige oscuro uniforme, sin puntos negros visibles de ajo.',tip:'El ajo negro tiene una textura muy suave — se licúa fácil. No más de 30 segundos de licuado.'},
       {t:'Integrar resto de mayo',x:'Agregar el resto de la mayonesa y los <span class="sq">{sal} de sal</span>. Homogenizar con cuchara (NO brazo de inmersión).',timer:null,ck:'Color beige oscuro/marrón uniforme. Sabor: dulce-umami terroso. Si sabe amargo, el ajo negro estaba pasado.',tip:'Usar brazo de inmersión en esta etapa puede romper la emulsión de la mayonesa. Solo cuchara.'},
     ]
@@ -1650,7 +1703,7 @@ caldo:{
     // Mayo Negra (M1): rinde ~150 g, unas 7 baguettes a 22 g. Distinta de la Mayo Ajo Negro de Poivre y Vodka.
     name:'Mayo Negra',cat:'mayo',tiempo:'10 min',rendPct:1.0,invId:'mayonegra',
     ing:[
-      {k:'mayonesa',n:"Mayonesa Hellman's",a:114,u:'g'},
+      {k:'mayonesa',n:"Mayonesa Member's Mark",a:114,u:'g'},
       {k:'ajo_negro',n:'Ajo negro (pelado)',a:10.5,u:'g'},
       {k:'mostaza_dijon',n:'Mostaza Dijon',a:9,u:'g'},
       {k:'miel',n:'Miel de maple',a:4.5,u:'g'},
@@ -1688,7 +1741,7 @@ caldo:{
   mayotrufa:{
     name:'Mayo Trufa',cat:'mayo',tiempo:'10 min',rendPct:1.0,invId:'mayotrufa',
     ing:[
-      {k:'mayonesa',n:"Mayonesa Hellman's",a:795,u:'g'},
+      {k:'mayonesa',n:"Mayonesa Member's Mark",a:795,u:'g'},
       {k:'miel',n:'Miel maple',a:49,u:'ml'},
       {k:'aceite_trufa',n:'Aceite de trufa',a:116,u:'ml'},
       {k:'sal',n:'Sal',a:22,u:'g'},
@@ -1702,7 +1755,7 @@ caldo:{
   mayochipotle:{
     name:'Mayo Chipotle',cat:'mayo',tiempo:'10 min',rendPct:1.0,invId:'mayochipotle',
     ing:[
-      {k:'mayonesa',n:"Mayonesa Hellman's",a:790,u:'g'},
+      {k:'mayonesa',n:"Mayonesa Member's Mark",a:790,u:'g'},
       {k:'chipotle',n:'Chipotle en adobo',a:80,u:'g'},
       {k:'salsa_inglesa',n:'Salsa inglesa',a:20,u:'ml'},
       {k:'vinagre_arroz',n:'Vinagre de arroz',a:50,u:'ml'},
@@ -1804,7 +1857,7 @@ mantequillaentrecot:{
 mayodip:{
     name:'Mayo French Dip',cat:'mayo',tiempo:'15 min',rendPct:1.0,invId:'mayodip',
     ing:[
-      {k:'mayonesa',n:'Mayonesa Hellman\'s',a:890,u:'g'},
+      {k:'mayonesa',n:'Mayonesa Member\'s Mark',a:890,u:'g'},
       {k:'eneldo',n:'Eneldo (picado fino)',a:31,u:'g'},
       {k:'ajo',n:'Ajo',a:20,u:'g'},
       {k:'mostaza_dijon',n:'Mostaza Dijon Maille',a:62,u:'g'},
@@ -1828,12 +1881,12 @@ const INSUMOS = [
   {id:'vacio_raw',n:'Vacío',cat:'Carniceria',precio:274.9},
   {id:'espaldilla',n:'Espaldilla de Cerdo',cat:'Carniceria',precio:81},   // confirmado por Andres (nov 2026)
   {id:'pechuga_pollo',n:'Pechuga de Pollo',cat:'Carniceria',precio:160.5},
-  {id:'mayonesa',n:'Mayonesa Hellman\'s',cat:'Lacteos',precio:78.53},
+  {id:'mayonesa',n:'Mayonesa Member\'s Mark',cat:'Lacteos',precio:83.28},   // $279 / 3.35 kg (nov 2026)
   {id:'queso_gouda',n:'Queso Gouda',cat:'Lacteos',precio:190.62},
   {id:'queso_provolone',n:'Queso Provolone',cat:'Lacteos',precio:190.62},
   {id:'queso_parm',n:'Queso Parmesano',cat:'Lacteos',precio:320.59},
   {id:'mantequilla',n:'Mantequilla',cat:'Lacteos',precio:174},
-  {id:'crema_lyncott',n:'Crema Lyncott',cat:'Lacteos',precio:87.68},
+  {id:'crema_lyncott',n:'Crema Alpura',cat:'Lacteos',precio:77.29},   // $69.56 / 900 ml (nov 2026); el id se conserva
   {id:'pan',n:'Pan Baguette',cat:'Panaderia',precio:22},
   {id:'pan_molido',n:'Pan Molido',cat:'Panaderia',precio:171.43},
   {id:'corn_flakes',n:'Corn Flakes',cat:'Abarrotes',precio:95},
@@ -1891,7 +1944,7 @@ const INSUMOS = [
   {id:'jugo_manzana',n:'Jugo de Manzana',cat:'Abarrotes',precio:0},
   // Empaque por pieza que va en la composición de cada baguette
   {id:'contenedor',n:'Contenedor de paquete',cat:'Empaque',precio:0.80},
-  {id:'bolsa_papas',n:'Bolsa de papas',cat:'Empaque',precio:1.8677},   // $373.54 / 200 piezas
+  {id:'bolsa_papas',n:'Bolsa de papas',cat:'Empaque',precio:1.6},   // $1.60 por pieza (nov 2026)
   // Preparados FONDO
   {id:'ins_aupoivre',n:'Salsa Au Poivre',cat:'Fondo',precio:133.12},
   {id:'ins_salsavodka',n:'Salsa Vodka',cat:'Fondo',precio:72.67},
@@ -1924,12 +1977,22 @@ Object.entries(PRICE_ALIAS).forEach(([k,v])=>{
 
 // Ingredientes que se descuentan de insumos al terminar cada receta
 // Convierte la receta del Recetario en proporciones para el costeo (por 1 kg de la pieza base): una sola fuente
-function recetaARatios(rk,alias){ const ing=R[rk].ing, base=ing[0].a||1000; return ing.filter(i=>!(alias&&alias[i.k]===null)).map(i=>({id:(alias&&alias[i.k])||i.k,ratio:i.a/base})); }
+// Las hojas (albahaca, laurel) se pasan a gramos; lo que no es g, ml ni hojas (piezas de clavo, etc.) no se costea.
+const HOJA_G={albahaca:0.4,laurel:0.2};   // gramos aprox. por hoja (laurel: 0.2 g, el mismo dato del caviar)
+function recetaARatios(rk,alias){
+  const ing=R[rk].ing, base=ing[0].a||1000;
+  return ing.filter(i=>!(alias&&alias[i.k]===null)&&(i.u==='g'||i.u==='ml'||i.u==='hojas')).map(i=>{
+    const id=(alias&&alias[i.k])||i.k;
+    return {id,ratio:(i.u==='hojas'?i.a*(HOJA_G[id]||0.4):i.a)/base};
+  });
+}
+// Lo que rinde una receta a 1x: rendimiento medido (rindeG) o masa de ingredientes × rendPct
+function rindeReceta(rk){ const rec=R[rk]; if(!rec) return 0; if(rec.rindeG>0) return rec.rindeG; return rec.ing.reduce((s,i)=>(i.u==='g'||i.u==='ml')?s+i.a:s,0)*(rec.rendPct||1); }
 const RECIPE_INSUMOS = {
-  aupoivre: [{id:'mantequilla',ratio:0.14},{id:'aceite_oliva',ratio:0.03},{id:'echalote_raw',ratio:0.34},{id:'ajo',ratio:0.019},{id:'vino_blanco',ratio:0.194},{id:'caldo_pollo',ratio:0.31},{id:'soya',ratio:0.029},{id:'crema_lyncott',ratio:0.267},{id:'pimienta',ratio:0.0034},{id:'sal',ratio:0.0034}],
-  salsavodka: [{id:'aceite_oliva',ratio:0.0773},{id:'cebolla_raw',ratio:0.192},{id:'jitomate_cherry',ratio:0.6},{id:'ajo',ratio:0.014},{id:'pure_tomate',ratio:0.24},{id:'crema_lyncott',ratio:0.144},{id:'albahaca',ratio:0.004},{id:'sal',ratio:0.006},{id:'pimienta',ratio:0.002},{id:'vodka',ratio:0.065}],
+  aupoivre: recetaARatios('aupoivre',{echalote:'echalote_raw'}),      // sale de la receta del Recetario (antes: 43 % más mantequilla)
+  salsavodka: recetaARatios('salsavodka',{cebolla:'cebolla_raw'}),
   caldo: [{id:'aceite_oliva',ratio:0.04},{id:'cebolla_morada',ratio:0.25},{id:'zanahoria',ratio:0.25},{id:'apio',ratio:0.15},{id:'ajo',ratio:0.02},{id:'tomillo',ratio:0.004},{id:'laurel',ratio:0.004},{id:'pimienta',ratio:0.003},{id:'vino_blanco',ratio:0.14},{id:'caldo_pollo',ratio:1.7},{id:'sal',ratio:0.005}],
-  cebolla: [{id:'aceite_freir',ratio:0.03},{id:'cebolla_raw',ratio:1.65},{id:'sal',ratio:0.008},{id:'vinagre_bals',ratio:0.08},{id:'azucar_morena',ratio:0.06}],
+  cebolla: recetaARatios('cebolla',{cebolla:'cebolla_raw'}),
   echalote: [{id:'echalote_raw',ratio:1.0},{id:'harina',ratio:0.3},{id:'aceite_freir',ratio:0.4}],
   dip: [{id:'picana',ratio:1.0},{id:'sal',ratio:0.012},{id:'pimienta',ratio:0.003}],
   entrecot: [{id:'vacio_raw',ratio:1.0},{id:'sal',ratio:0.012},{id:'pimienta',ratio:0.003}],
@@ -1938,7 +2001,7 @@ const RECIPE_INSUMOS = {
   mayonegra: recetaARatios('mayonegra'),
   caviarmostaza: recetaARatios('caviarmostaza',{agua:null}),
   cebollafrita: recetaARatios('cebollafrita',{cebolla:'cebolla_raw'}),
-  colmorada: recetaARatios('colmorada',{cebolla:'cebolla_raw'}),
+  colmorada: recetaARatios('colmorada',{cebolla:'cebolla_raw',clavo:null,canela:null}),
   mayoajneg: [{id:'mayonesa',ratio:0.945},{id:'ajo_negro',ratio:0.03},{id:'vinagre_arroz',ratio:0.02},{id:'sal',ratio:0.005}],
   mayotrufa: [{id:'mayonesa',ratio:0.795},{id:'miel',ratio:0.049},{id:'aceite_trufa',ratio:0.116},{id:'sal',ratio:0.022},{id:'vinagre_arroz',ratio:0.033}],
   mayochipotle: [{id:'mayonesa',ratio:0.79},{id:'chipotle',ratio:0.08},{id:'salsa_inglesa',ratio:0.02},{id:'vinagre_arroz',ratio:0.05},{id:'ajo',ratio:0.06},{id:'sal',ratio:0.003}],
@@ -2039,7 +2102,7 @@ function bagIsActive(k){const a=S.bagActive||{}; return a[k]!==undefined?!!a[k]:
 function activeBagKeys(){return BAG_ORDER.filter(bagIsActive);}
 // congG → fritoG: rendimiento de la papa (650 g congeladas dan 470 g fritas). Los gramos de porción son de papa FRITA.
 // salG: sal por cada 100 g de papa frita (el rub es solo sal). rubG: perejil, solo en las papas parmesano y perejil.
-const DEFAULT_PAPAS_CFG={gramos:100,rubG:1,salG:1,trufaMl:15,ppG:150,ppPapasG:200,litros:3.5,kgCambio:10,precioBase:55,precioPP:95,precioPP_rappi:115,precioPP_uber:115,precioPP_didi:115,precioTrufa:70,parmG:15,precioParm:65,precioParmTrufa:80,...PAPAS_REND_DEF};
+const DEFAULT_PAPAS_CFG={gramos:100,rubG:1,salG:1,trufaMl:15,ppG:120,ppPapasG:200,litros:3.5,kgCambio:10,precioBase:55,precioPP:95,precioPP_rappi:115,precioPP_uber:115,precioPP_didi:115,precioTrufa:70,parmG:15,precioParm:65,precioParmTrufa:80,...PAPAS_REND_DEF};
 // Gramos de papa congelada que se necesitan para g gramos de papa frita
 function papasCongeladas(g){ const c=papasCfg(); return (c.congG>0&&c.fritoG>0)?g*c.congG/c.fritoG:g; }
 // Papas con pulled pork: precio por canal (si un canal no tiene precio propio, usa el de Directo)
@@ -2321,6 +2384,8 @@ async function initSB(){
     if(_cloudFinVer<7&&S.activeUser==='Andres'){ applyCosteoV7(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=7; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('empaques'); }
     // v8: quesos, salsas 80 ml, Entrecôt sin echalote, papas (aceite y sal), cebolla $15/kg y precios nuevos (solo con Andres)
     if(_cloudFinVer<8&&S.activeUser==='Andres'){ applyCosteoV8(); _asCache=null; _oiCache=null; saveS(); _cloudFinVer=8; saveCfgToDB('fin',S.fin); subirCfgCosto('bagGramajes'); subirCfgCosto('salePrices'); saveCfgToDB('papasCfg',S.papasCfg); setPrecioManual('cebolla_raw',15,'Promedio confirmado por Andres (nov 2026)'); setPrecioManual('espaldilla',81,'Precio confirmado por Andres (nov 2026)'); }
+    // v9 (24 nov 2026, datos de Andres): Papas Fondo con 120 g de pulled pork; mayonesa Member's Mark, crema Alpura y bolsa de papas a $1.60
+    if(_cloudFinVer<9&&S.activeUser==='Andres'){ S.papasCfg={...(S.papasCfg||{}),ppG:120}; S.fin={...finCfg(),ver:9}; _asCache=null; _oiCache=null; saveS(); _cloudFinVer=9; saveCfgToDB('fin',S.fin); saveCfgToDB('papasCfg',S.papasCfg); setPrecioManual('mayonesa',83.28,"Member's Mark 3.35 kg a $279 (nov 2026)"); setPrecioManual('crema_lyncott',77.29,'Crema Alpura 900 ml a $69.56 (nov 2026)'); setPrecioManual('bolsa_papas',1.6,'Bolsa de papas a $1.60 (nov 2026)'); }
     // Ventas — resiliente si la tabla no existe. Primero se reintentan las que no se pudieron subir.
     try{
       await subirVentasPend();
@@ -2614,7 +2679,7 @@ const BAG_RECIPES={
   poivre:['aupoivre','vaciosv','mayoajneg','papasclasicas'],
   vodka:['salsavodka','polloempanizado','cebolla','mayoajneg','papasclasicas'],
   dip:['roastbeef','caldo','mayodip','cebolla','papasclasicas'],
-  pulledpork:['pulledporkbase','mayonegra','caviarmostaza','papasclasicas'],
+  pulledpork:['pulledporkbase','mayoajneg','colmorada','caviarmostaza','papasclasicas'],
 };
 const PAPAS_RECIPES=['papasclasicas','papastrufa','papasparm','papasparmtrufa','papaspp','pulledporkbase'];
 const REC_LABEL_PAPAS={pulledporkbase:'Pulled pork (para las papas)'};
@@ -2836,6 +2901,9 @@ function renderStep(){
   S.guide.scaledIng.forEach(ing=>{
     txt=txt.split('{'+(ing.tok||ing.k)+'}').join('<span class="sq">'+fmtQ(ing.scaled,ing.u)+'</span>');
   });
+  // Cantidades derivadas que también escalan: {ingrediente*0.25} (una fracción) y {rinde} (lo que debe quedar)
+  txt=txt.replace(/\{([a-z_0-9]+)\*([\d.]+)\}/g,(m,k,fr)=>{ const ing=S.guide.scaledIng.find(i=>(i.tok||i.k)===k); return ing?'<span class="sq">'+fmtQ(Math.round(ing.scaled*parseFloat(fr)),ing.u)+'</span>':m; });
+  txt=txt.split('{rinde}').join('<span class="sq">'+fmtQ(Math.round(rindeReceta(S.guide.recKey)*(S.scaleFactor||1)),unitOfInv(rec.invId))+'</span>');
 
   // Build ingredient reference
   const ingHtml=S.guide.scaledIng.map(i=>`<span class="ingr-tag">${i.n}: <b>${fmtQ(i.scaled,i.u)}</b></span>`).join('');
@@ -4161,7 +4229,6 @@ async function subirMovPend(){
 // MODAL TERMINADO RECETA — con descuento de insumos
 // ================================================================
 // Insumos EXACTOS que consume una receta: cantidades reales de sus ingredientes × factor (en g / ml / pza)
-const HOJA_G={albahaca:0.4,laurel:0.2};   // gramos aprox. por hoja (laurel: 0.2 g, el mismo dato del caviar)
 function insIdForIng(k){ return (typeof PRICE_ALIAS!=='undefined'&&PRICE_ALIAS[k])||k; }
 function recipeInsumoNeeds(rk,factor){
   const rec=R[rk], out={}; if(!rec) return out;
@@ -4188,7 +4255,7 @@ function faltantesReg(rk){
 function openFinishModal(){
   if(!S.currentRec){showToast('Primero selecciona una receta');return;}
   const rec=R[S.currentRec];
-  document.getElementById('mRegName').textContent=`Receta: ${rec.name} · Factor: ${S.scaleFactor.toFixed(2)}x`;
+  document.getElementById('mRegName').textContent=`Receta: ${rec.name} · Factor: ${S.scaleFactor.toFixed(2)}x · Debe rendir ~${fmtQ(Math.round(rindeReceta(S.currentRec)*S.scaleFactor),unitOfInv(rec.invId))}: pesa y anota lo real`;
   buildBags('mRegBags','mRegNum');
   // Mostrar insumos que se van a descontar (⚠ si no alcanzan)
   const cons=calcConsumo(S.currentRec);
@@ -6228,8 +6295,7 @@ function calcBagShoppingList(){
         // Desglosar: cuántos gramos de producto necesito → qué insumos crudos
         const totalG = c.g * qty; // gramos de este componente para todas las baguettes
         const rec = R[recKey];
-        const totalInput = rec.ing.reduce((s,i)=>(i.u==='g'||i.u==='ml')?s+i.a:s, 0);
-        const rend = totalInput * (rec.rendPct||1);
+        const rend = rindeReceta(recKey);   // respeta el rendimiento medido (rindeG)
         const need = recipeInsumoNeeds(recKey, totalG / rend);
         Object.keys(need).forEach(id=>{ needed[id] = (needed[id]||0) + need[id]; });
       } else {
@@ -6320,8 +6386,7 @@ function calcShoppingList(){
     const ins=recKey?RECIPE_INSUMOS[recKey]:null;
     if(ins&&recKey){
       const rec=R[recKey];
-      const totalInput=rec.ing.reduce((s,i)=>(i.u==='g'||i.u==='ml')?s+i.a:s,0);
-      const rend=totalInput*(rec.rendPct||1);
+      const rend=rindeReceta(recKey);   // respeta el rendimiento medido (rindeG)
       const need=recipeInsumoNeeds(recKey,falta/rend);
       Object.keys(need).forEach(id=>{ needed[id]=(needed[id]||0)+need[id]; });
     } else {
